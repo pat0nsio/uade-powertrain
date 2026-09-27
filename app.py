@@ -1,0 +1,349 @@
+"""DPF Health Copilot — dashboard. Ejecutar: streamlit run app.py"""
+import json
+
+import lightgbm as lgb
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import shap
+import streamlit as st
+
+from src.evaluate import group_of
+from src.features import feature_cols
+
+st.set_page_config("DPF Health Copilot", "🛠️", layout="wide")
+
+BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
+RED, GRAY = "#e34948", "#8a8984"
+STATUS = {"Alto": ("#d03b3b", "⛔"), "Medio": ("#fab219", "⚠️"), "Bajo": ("#0ca30c", "✅")}
+GRID, AXIS, INK2 = "#e1e0d9", "#c3c2b7", "#52514e"
+
+
+def style(fig, h=320, **kw):
+    fig.update_layout(template="plotly_white", height=h, margin=dict(l=10, r=10, t=40, b=10),
+                      font=dict(color=INK2), hovermode=kw.pop("hovermode", "x unified"),
+                      legend=dict(orientation="h", y=1.12), **kw)
+    fig.update_xaxes(gridcolor=GRID, linecolor=AXIS)
+    fig.update_yaxes(gridcolor=GRID, linecolor=AXIS)
+    return fig
+
+
+@st.cache_data
+def load():
+    p = pd.read_parquet("data/preds.parquet")
+    p["day"] = pd.to_datetime(p["day"])
+    p["row"] = np.arange(len(p))
+    sc = pd.read_parquet("data/scores.parquet")
+    p = p.merge(sc, on=["v", "day"], how="left")
+    s = pd.read_parquet("data/static.parquet")
+    prof = pd.read_parquet("data/profiles.parquet")[["v", "profile"]]
+    M = json.load(open("data/metrics.json"))
+    q = json.load(open("data/quality.json"))
+    return p, s, prof, M, q
+
+
+@st.cache_data
+def load_features():
+    f = pd.read_parquet("data/features.parquet")
+    f["day"] = pd.to_datetime(f["day"])
+    return f
+
+
+@st.cache_resource
+def booster():
+    b = lgb.Booster(model_file="models/gbm90.txt")
+    return b, shap.TreeExplainer(b)
+
+
+@st.cache_resource
+def whatif_model():
+    return lgb.Booster(model_file="models/gbm90_whatif.txt")
+
+
+@st.cache_data
+def attention():
+    return np.load("models/gru_attention.npy")
+
+
+p, static, prof, M, Q = load()
+THR = M["alarm_threshold"]
+
+
+def status(x):
+    return "Alto" if x >= THR else ("Medio" if x >= THR / 2 else "Bajo")
+
+
+OUTAGE = pd.Timestamp(Q["regen_telemetry_outage_from"])
+# último día confiable: previo al corte de telemetría de regeneraciones
+latest = p[p["score_s"].notna()].sort_values("day").groupby("v").tail(1).merge(static[["v", "country", "ModelSeries", "Engine"]], on="v") \
+    .merge(prof, on="v", how="left")
+latest["estado"] = latest["score_s"].map(status)
+
+st.sidebar.title("🛠️ DPF Health Copilot")
+st.sidebar.caption("Predicción temprana de degradación de combustión / DPF a partir de telemetría conectada.")
+view = st.sidebar.radio("Vista", ["Flota", "Vehículo", "Modelo y negocio", "Calidad de datos"])
+subset = st.sidebar.selectbox("Vehículos", ["Holdout (nunca vistos)", "Todos (OOF)"])
+if subset.startswith("Holdout"):
+    latest = latest[latest["fold"] == -1]
+
+ADVICE = {
+    "Patrón de uso": "Predominan viajes cortos/urbanos: sugerir al cliente un trayecto de ruta ≥ 20 min a > 60 km/h esta semana.",
+    "Regeneraciones": "Regeneraciones interrumpidas o poco frecuentes: evitar apagar el motor durante la limpieza automática; agendar regeneración asistida.",
+    "Hollín / DPF": "Carga de hollín en aumento sostenido: programar regeneración forzada en concesionario antes de que el DPF llegue al límite.",
+    "Térmico / arranques en frío": "Muchos arranques en frío sin alcanzar temperatura de operación: combinar trayectos cortos en uno más largo.",
+    "Consumo": "Consumo por encima de su historial: revisar filtro de aire / admisión y presión de neumáticos.",
+    "Aceite": "Degradación acelerada del aceite (posible dilución por post-inyección): adelantar el cambio de aceite.",
+    "Clima": "Operación en clima frío: mayor tiempo de calentamiento, priorizar trayectos más largos.",
+}
+
+# =====================================================================================
+if view == "Flota":
+    st.title("Estado de la flota")
+    lc = next(c for c in M["leadtime_curve"] if c["target_fpr"] == M["operating_fpr"])
+    c = st.columns(4)
+    c[0].metric("Vehículos monitoreados", f"{len(latest)}")
+    c[1].metric("En alerta alta", f"{(latest['estado'] == 'Alto').sum()}")
+    c[2].metric("Anticipación mediana", f"{lc['median_lead_days']:.0f} días",
+                f"{lc['median_lead_days'] - (M['ecu_baseline']['median_lead_days'] or 0):+.0f} vs advertencia ECU")
+    c[3].metric("Eventos detectados antes de ocurrir", f"{lc['detection_rate']:.0%}")
+
+    l, r = st.columns([3, 2])
+    with l:
+        st.subheader("Ranking de riesgo (último día reportado)")
+        tb = latest.sort_values("score_s", ascending=False)[
+            ["v", "estado", "score_s", "health", "rul", "profile", "country", "ModelSeries", "day"]].copy()
+        tb["estado"] = tb["estado"].map(lambda s: f"{STATUS[s][1]} {s}")
+        st.dataframe(tb.rename(columns={"v": "Vehículo", "score_s": "Riesgo 90d", "health": "Health Index",
+                                        "rul": "RUL (días)", "profile": "Perfil", "country": "País",
+                                        "ModelSeries": "Modelo", "day": "Último dato"}),
+                     hide_index=True, height=440,
+                     column_config={"Riesgo 90d": st.column_config.ProgressColumn(format="%.2f", min_value=0, max_value=1),
+                                    "Health Index": st.column_config.NumberColumn(format="%.0f"),
+                                    "RUL (días)": st.column_config.NumberColumn(format="%.0f")})
+    with r:
+        st.subheader("Tasa de falla por perfil de conductor")
+        pr = pd.DataFrame(M["profiles"]).T.reset_index().rename(columns={"index": "perfil"}).sort_values("failure_rate")
+        fig = go.Figure(go.Bar(x=pr["failure_rate"], y=pr["perfil"], orientation="h", marker_color=BLUE,
+                               text=[f"{x:.0%} (n={int(n)})" for x, n in zip(pr["failure_rate"], pr["n"])],
+                               textposition="outside", hovertemplate="%{y}: %{x:.1%}<extra></extra>"))
+        st.plotly_chart(style(fig, 260, hovermode="closest", xaxis_tickformat=".0%"), width="stretch")
+        st.subheader("Vehículos por estado y país")
+        ct = latest.groupby(["country", "estado"]).size().unstack(fill_value=0)
+        fig = go.Figure([go.Bar(name=f"{STATUS[s][1]} {s}", x=ct.index, y=ct.get(s, 0), marker_color=STATUS[s][0],
+                                marker_line=dict(color="white", width=2)) for s in ["Alto", "Medio", "Bajo"]])
+        st.plotly_chart(style(fig, 260, barmode="stack"), width="stretch")
+
+# =====================================================================================
+elif view == "Vehículo":
+    f = load_features()
+    cols = feature_cols(f)
+    opts = latest.sort_values(["failed", "score_s"], ascending=False)["v"].tolist()
+    v = st.selectbox("Vehículo", opts, format_func=lambda x: f"{x} — {'con evento' if static.set_index('v').loc[x, 'failed'] else 'sano'}")
+    pv = p[p["v"] == v].sort_values("day")
+    fv = f[f["v"] == v].sort_values("day")
+    events = static.set_index("v").loc[v, "events"]
+    pv = pv[pv["day"] < OUTAGE] if (pv["day"] < OUTAGE).any() else pv
+    fv = fv[fv["day"].isin(pv["day"])]
+    day = st.select_slider("Fecha de análisis", options=list(pv["day"].dt.date), value=pv["day"].dt.date.iloc[-1])
+    cur = pv[pv["day"].dt.date == day].iloc[0]
+    fx = fv[fv["day"].dt.date == day]
+
+    c = st.columns(5)
+    s_ = status(cur["score_s"])
+    c[0].metric("Estado", f"{STATUS[s_][1]} {s_}")
+    c[1].metric("Riesgo evento 90 días", f"{cur['stack90']:.0%}")
+    c[2].metric("Riesgo 30 días", f"{cur['stack30']:.0%}")
+    c[3].metric("Health Index", f"{cur['health']:.0f}/100")
+    c[4].metric("RUL estimado (supervivencia)", f"{cur['rul']:.0f} días")
+
+    fig = go.Figure()
+    fig.add_scatter(x=pv["day"], y=pv["score_s"], name="Riesgo 90d (ensamble, media 7d)", line=dict(color=BLUE, width=2))
+    fig.add_scatter(x=pv["day"], y=pv["gru90"], name="GRU", line=dict(color=AQUA, width=1), opacity=0.6)
+    ecu = pv[pv["ecu_warning"] > 0]
+    fig.add_scatter(x=ecu["day"], y=np.full(len(ecu), 0.02), mode="markers", name="Advertencia ECU (DPF sobre límite)",
+                    marker=dict(color=ORANGE, size=8, symbol="triangle-up"))
+    fig.add_hline(y=THR, line=dict(color=GRAY, dash="dash", width=1), annotation_text="umbral de alerta")
+    for e in events:
+        fig.add_vline(x=pd.Timestamp(e), line=dict(color=RED, width=2))
+        fig.add_annotation(x=pd.Timestamp(e), y=1, yref="paper", text="evento identificado", showarrow=False,
+                           font=dict(color=RED), xanchor="left")
+    fig.add_vline(x=pd.Timestamp(day), line=dict(color=INK2, width=1, dash="dot"))
+    st.plotly_chart(style(fig, 340, title="Evolución del riesgo", yaxis_range=[0, 1]), width="stretch")
+    st.caption(f"Serie hasta {OUTAGE.date()}: desde esa fecha el origen de datos dejó de reportar regeneraciones "
+               "para toda la flota (ver Calidad de datos). Los eventos posteriores se muestran como referencia.")
+
+    # small multiples de señales físicas (sin doble eje)
+    sig = [("w7_acc_mean", "Acumulación de hollín (media 7d, %)"), ("w30_km_per_regen", "Km entre regeneraciones (30d)"),
+           ("w30_sh_short5", "Viajes < 5 km (30d)"), ("w30_fuel_per100", "Consumo (% tanque /100 km, 30d)")]
+    cc = st.columns(4)
+    for col, (s, t) in zip(cc, sig):
+        fig = go.Figure(go.Scatter(x=fv["day"], y=fv[s], line=dict(color=BLUE, width=2), name=t))
+        for e in events:
+            fig.add_vline(x=pd.Timestamp(e), line=dict(color=RED, width=1))
+        col.plotly_chart(style(fig, 200, title=dict(text=t, font=dict(size=12)), showlegend=False), width="stretch")
+
+    l, m_, r = st.columns([2, 1.2, 1.3])
+    b, ex = booster()
+    X = fx[cols]
+    sv = ex.shap_values(X)
+    sv = (sv[1] if isinstance(sv, list) else sv)[0]
+    contrib = pd.DataFrame({"feature": cols, "shap": sv, "value": X.iloc[0].values}).assign(a=lambda d: d.shap.abs())
+    top = contrib.nlargest(12, "a").sort_values("shap")
+    with l:
+        st.subheader("¿Por qué este riesgo? (SHAP)")
+        fig = go.Figure(go.Bar(x=top["shap"], y=top["feature"], orientation="h",
+                               marker_color=[RED if s > 0 else BLUE for s in top["shap"]],
+                               customdata=top["value"], hovertemplate="%{y}<br>valor=%{customdata:.3g}<br>SHAP=%{x:.3f}<extra></extra>"))
+        st.plotly_chart(style(fig, 380, hovermode="closest", xaxis_title="← baja el riesgo | sube el riesgo →"),
+                        width="stretch")
+    with m_:
+        st.subheader("Supervivencia (RSF)")
+        fig = go.Figure(go.Bar(x=["30d", "60d", "90d", "180d"], y=[cur[f"rsf{t}"] for t in (30, 60, 90, 180)],
+                               marker_color=BLUE, text=[f"{cur[f'rsf{t}']:.0%}" for t in (30, 60, 90, 180)],
+                               textposition="outside", hovertemplate="P(evento ≤ %{x}) = %{y:.1%}<extra></extra>"))
+        st.plotly_chart(style(fig, 380, hovermode="closest", yaxis_tickformat=".0%", yaxis_range=[0, 1],
+                              yaxis_title="P(evento antes de t)"), width="stretch")
+    with r:
+        st.subheader("Atención de la GRU")
+        att = attention()[int(cur["row"])].astype(float)
+        days = pd.date_range(end=pd.Timestamp(day), periods=len(att))
+        fig = go.Figure(go.Bar(x=days, y=att, marker_color=AQUA, hovertemplate="%{x|%d-%b}: %{y:.3f}<extra></extra>"))
+        st.plotly_chart(style(fig, 380, hovermode="closest", yaxis_title="peso de atención",
+                              title=dict(text="Días de los últimos 60 que más pesaron", font=dict(size=12))),
+                        width="stretch")
+
+    st.subheader("Recomendación prescriptiva")
+    drivers = contrib[contrib["shap"] > 0].assign(g=lambda d: d.feature.map(group_of)).groupby("g")["shap"].sum() \
+        .sort_values(ascending=False)
+    for g in [g for g in drivers.index if g in ADVICE][:3]:
+        st.markdown(f"- **{g}** → {ADVICE[g]}")
+    if drivers.empty:
+        st.markdown("- Uso saludable: sin acciones necesarias.")
+
+    st.subheader("Simulador what-if: ¿qué pasa si cambia el hábito de manejo?")
+    st.caption("Usa un GBM con restricciones monótonas físicas (más viajes cortos / regeneraciones interrumpidas nunca "
+               "bajan el riesgo; viajes más largos y rápidos nunca lo suben), para que la simulación sea coherente.")
+    w = st.columns(3)
+    long_trips = w[0].slider("Viajes de ruta (≥ 40 km) extra por semana", 0, 5, 1)
+    short_cut = w[1].slider("Reducir viajes cortos (< 5 km) en", 0, 100, 0, format="%d%%")
+    warm = w[2].checkbox("Evitar apagar el motor durante la regeneración", value=False)
+    Xs = X.copy()
+    # Solo se modifican features con restricción monótona (el resultado es coherente por construcción):
+    # los viajes cortos eliminados se asumen cortos/urbanos/en frío; los de ruta suman 40 km a 80 km/h.
+    for wd in (7, 30, 90):
+        n = Xs[f"w{wd}_n_trips"] * wd
+        add = long_trips * wd / 7
+        removed = Xs[f"w{wd}_sh_short5"] * n * short_cut / 100
+        n2 = (n - removed + add).replace(0, np.nan)
+        km = Xs[f"w{wd}_km"] * wd
+        for c_ in ["sh_short5", "sh_short10", "sh_urban", "sh_never_warm", "sh_cold_start"]:
+            Xs[f"w{wd}_{c_}"] = ((Xs[f"w{wd}_{c_}"] * n - removed).clip(lower=0) / n2).fillna(0)
+        Xs[f"w{wd}_sh_micro"] = (Xs[f"w{wd}_sh_micro"] * n * (1 - short_cut / 100) / n2).fillna(0)
+        Xs[f"w{wd}_km_per_trip"] = (km + 40 * add) / n2
+        hours = km / Xs[f"w{wd}_speed"].replace(0, np.nan)
+        Xs[f"w{wd}_speed"] = ((km + 40 * add) / (hours + add * 0.5)).fillna(Xs[f"w{wd}_speed"])
+        if warm:
+            Xs[f"w{wd}_sh_trip_end_in_regen"] = 0
+            Xs[f"w{wd}_regen_stop_ratio"] = 0
+    if long_trips:  # un trayecto largo completa una regeneración
+        Xs[["days_since_regen", "km_since_regen"]] = 0
+    wm = whatif_model()
+    p0, p1 = wm.predict(X)[0], wm.predict(Xs)[0]
+    c = st.columns(3)
+    c[0].metric("Riesgo actual (modelo what-if)", f"{p0:.0%}")
+    c[1].metric("Riesgo con el nuevo hábito", f"{p1:.0%}", f"{(p1 - p0) * 100:+.0f} pp", delta_color="inverse")
+    c[2].metric("Reducción relativa", f"{(1 - p1 / p0) if p0 > 0 else 0:.0%}")
+
+# =====================================================================================
+elif view == "Modelo y negocio":
+    st.title("Desempeño del modelo (holdout de vehículos nunca vistos)")
+    d = pd.DataFrame(M["discrimination"])
+    st.subheader("Discriminación por modelo y horizonte")
+    piv = d.pivot(index="model", columns="H", values=["auc", "ap", "auc_within_failed"]).round(3)
+    piv.columns = [f"{a.upper()} {h}d" for a, h in piv.columns]
+    st.dataframe(piv, width="stretch")
+    st.caption(f"AUC within-failed: discrimina *cuándo* se acerca el evento dentro de vehículos que fallan "
+               f"(inmune a diferencias de cohorte). C-index supervivencia (RSF): {M['rsf_c_index']:.3f}")
+
+    l, r = st.columns(2)
+    with l:
+        st.subheader("Anticipación vs falsas alarmas")
+        lc = pd.DataFrame(M["leadtime_curve"])
+        fig = go.Figure()
+        fig.add_scatter(x=lc["false_alarm_episodes_per_vehicle_year"], y=lc["median_lead_days"], mode="lines+markers+text",
+                        name="DPF Health Copilot", line=dict(color=BLUE, width=2), marker=dict(size=9),
+                        text=[f"detecta {x:.0%}" for x in lc["detection_rate"]], textposition="top left",
+                        hovertemplate="falsas alarmas/vehículo-año=%{x:.2f}<br>anticipación mediana=%{y:.0f} días<extra></extra>")
+        e = M["ecu_baseline"]
+        fig.add_scatter(x=[e["false_alarm_episodes_per_vehicle_year"]], y=[e["median_lead_days"]], mode="markers+text",
+                        name="Advertencia ECU actual", marker=dict(color=ORANGE, size=11, symbol="diamond"),
+                        text=[f"detecta {e['detection_rate']:.0%}"], textposition="bottom right")
+        st.plotly_chart(style(fig, 380, hovermode="closest", xaxis_title="episodios de falsa alarma por vehículo-año",
+                              yaxis_title="días de anticipación (mediana)"), width="stretch")
+    with r:
+        st.subheader("Calibración (riesgo 90 días)")
+        cal = pd.DataFrame(M["calibration"])
+        fig = go.Figure()
+        fig.add_scatter(x=[0, cal["pred"].max()], y=[0, cal["pred"].max()], name="ideal", line=dict(color=GRAY, dash="dash", width=1))
+        fig.add_scatter(x=cal["pred"], y=cal["obs"], name="ensamble", mode="lines+markers", line=dict(color=BLUE, width=2))
+        st.plotly_chart(style(fig, 380, hovermode="closest", xaxis_title="probabilidad predicha",
+                              yaxis_title="frecuencia observada"), width="stretch")
+
+    l, r = st.columns(2)
+    sg = pd.read_parquet("data/shap_global.parquet")
+    with l:
+        st.subheader("Qué explica el riesgo (SHAP por hipótesis física)")
+        g = pd.Series(M["shap_by_group"]).sort_values()
+        fig = go.Figure(go.Bar(x=g.values, y=g.index, orientation="h", marker_color=BLUE,
+                               hovertemplate="%{y}: %{x:.3f}<extra></extra>"))
+        st.plotly_chart(style(fig, 360, hovermode="closest", xaxis_title="Σ |SHAP| medio"), width="stretch")
+    with r:
+        st.subheader("Top 15 features")
+        t = sg.head(15).iloc[::-1]
+        fig = go.Figure(go.Bar(x=t["mean_abs_shap"], y=t["feature"], orientation="h", marker_color=BLUE,
+                               customdata=t["group"], hovertemplate="%{y} (%{customdata}): %{x:.3f}<extra></extra>"))
+        st.plotly_chart(style(fig, 360, hovermode="closest"), width="stretch")
+
+    st.subheader("Impacto económico estimado")
+    lc5 = next(c for c in M["leadtime_curve"] if c["target_fpr"] == M["operating_fpr"])
+    c = st.columns(3)
+    fleet = c[0].number_input("Vehículos diésel en la red", 1000, 1_000_000, 50_000, step=1000)
+    rate = c[1].number_input("Eventos de degradación por vehículo-año", 0.0, 0.5, 0.05, format="%.3f")
+    success = c[2].slider("Eventos evitados cuando se alerta a tiempo", 0, 100, 60, format="%d%%") / 100
+    c = st.columns(3)
+    repair = c[0].number_input("Costo correctivo por evento (USD: garantía + DPF + grúa)", 0, 10000, 1800, step=100)
+    notify = c[1].number_input("Costo por alerta nivel 1 (push al cliente + seguimiento, USD)", 0, 200, 3)
+    prev = c[2].number_input("Costo acción preventiva nivel 2 (regeneración asistida, USD)", 0, 2000, 120, step=10)
+    ev = fleet * rate
+    det = ev * lc5["detection_rate"]
+    alerts = det + fleet * lc5["false_alarm_episodes_per_vehicle_year"]
+    # nivel 1: toda alerta = notificación con recomendación de manejo; nivel 2: solo eventos reales que persisten
+    saving = det * success * repair - alerts * notify - det * prev
+    c = st.columns(4)
+    c[0].metric("Eventos anticipados / año", f"{det:,.0f}")
+    c[1].metric("Eventos evitados / año", f"{det * success:,.0f}")
+    c[2].metric("Alertas nivel 1 / año", f"{alerts:,.0f}")
+    c[3].metric("Ahorro neto estimado / año", f"USD {saving:,.0f}")
+    st.caption("Supuestos editables; tasas de detección y falsa alarma medidas en holdout con el umbral del punto de operación (días-sanos en alerta).")
+
+# =====================================================================================
+else:
+    st.title("Calidad y trazabilidad del pipeline")
+    st.markdown("""
+**Decisiones de datos**
+- **Etiquetas**: se usan los archivos *v2* de fallados. En v1, `IdentificationDate == daysUntilSale` en el 76% de los casos (fecha de venta, no de falla).
+- **Anclaje temporal**: la fecha de producción se reconstruye como `D0 + ProductionDay`; el primer viaje (en planta) coincide con producción con dispersión p5–p95 < 1 día, lo que valida el anclaje y permite ubicar el evento en el calendario.
+- **Conflictos de etiqueta**: sanos que aparecen en alguna lista de fallados → excluidos.
+- **Eventos múltiples**: un vehículo puede tener varios eventos; tras cada service se excluyen 14 días (transición) y el reloj se reinicia.
+- **Censura**: un día sano solo es negativo si se observan los H días siguientes.
+- **Anti-leakage**: features solo con pasado (test automático de historia truncada); edad, odómetro y fecha nunca son features (los fallados son una cohorte más antigua); split por vehículo con holdout del 20%.
+- **Corte de telemetría detectado**: desde el {} no llega ningún evento de regeneración en toda la flota (los mensajes ECU siguen llegando). Tratado como faltante, no como cero; entrenamiento y evaluación usan un corte administrativo simétrico en esa fecha. Sin esta corrección el riesgo de los vehículos sanos subía artificialmente de 4% a 41%.
+- **Sentinelas**: temperaturas −73/−128 °C, −60 °C de motor y valores fuera de rango físico → nulos.
+""".format(Q["regen_telemetry_outage_from"]))
+    rows = [(k, v) for k, v in Q.items() if not isinstance(v, dict)]
+    st.dataframe(pd.DataFrame(rows, columns=["control", "valor"]).astype(str), hide_index=True, width="stretch")
+    st.subheader("Tasa de nulos por variable de viaje (post-limpieza)")
+    nr = pd.Series(Q["trip_null_rate"]).sort_values()
+    fig = go.Figure(go.Bar(x=nr.values, y=nr.index, orientation="h", marker_color=BLUE,
+                           hovertemplate="%{y}: %{x:.2%}<extra></extra>"))
+    st.plotly_chart(style(fig, 260, hovermode="closest", xaxis_tickformat=".1%"), width="stretch")
