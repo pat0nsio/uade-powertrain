@@ -23,8 +23,13 @@ uv pip install --python .venv -r requirements.txt   # torch CPU: --index-url htt
 .venv/bin/streamlit run app.py          # dashboard
 ```
 
-DuckDB está limitado a 4 GB y 4 hilos: sin límite, las consultas sobre los ~10 M de eventos pueden congelar una
-máquina de 16 GB.
+DuckDB está limitado por defecto a 4 GB y 4 hilos: sin límite, las consultas sobre los ~10 M de eventos pueden congelar
+una máquina de 16 GB. Para ajustarlo, editar `duckdb.local.json` (no versionado; acepta cualquier opción de
+configuración de DuckDB):
+
+```json
+{ "memory_limit": "8GB", "threads": 8 }
+```
 
 ## Pipeline
 

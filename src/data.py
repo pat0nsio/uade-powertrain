@@ -28,6 +28,11 @@ DYN = {"failed": RAW / "Dynamic/DynamicInformation_Failed_SelectionVins_v2.csv",
 # ponytail: offset fijo UTC-4 para "hora local" (flota LatAm UTC-3..-5); usar tz por país si la hora importa más
 LOCAL = "INTERVAL 4 HOUR"
 
+# Recursos de DuckDB: se pueden sobreescribir en duckdb.local.json (no versionado). Sin límite, DuckDB toma ~80% de la
+# RAM y puede congelar máquinas de 16 GB.
+DUCKDB_DEFAULTS = {"memory_limit": "4GB", "threads": 4}
+DUCKDB_LOCAL = Path("duckdb.local.json")
+
 # Estados del DPF (renombrado "Air Filter" en el dataset anonimizado)
 OVER = "('Air Filter Over Limit','Air Filter Overloaded','Air Filter At Limit')"
 
@@ -43,7 +48,9 @@ def num(col, lo, hi):
 
 def build():
     OUT.mkdir(exist_ok=True)
-    c = duckdb.connect(config={"memory_limit": "4GB", "threads": 4})  # evita congelar máquinas de 16 GB
+    cfg = {**DUCKDB_DEFAULTS, **(json.loads(DUCKDB_LOCAL.read_text()) if DUCKDB_LOCAL.exists() else {})}
+    c = duckdb.connect(config=cfg)
+    print("DuckDB:", cfg)
     q = {}
 
     # ---------- static ----------

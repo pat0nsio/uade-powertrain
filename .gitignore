@@ -3,3 +3,4 @@ data/
 Datasets/
 __pycache__/
 models/
+duckdb.local.json
