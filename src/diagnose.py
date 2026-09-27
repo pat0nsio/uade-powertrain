@@ -4,9 +4,13 @@
             vehículo (estratificado por fallado) dentro de cada fold; AUC/AP OOF sobre los folds de validación completos.
   temporal  Descompone la caída del holdout por vehículo (~0.78) a la validación temporal (~0.64), con el LightGBM y los
             vehículos del holdout: período de entrenamiento (todo / etiquetas conocidas en T) x período evaluado
-            (< T / >= T), más un control con el train completo submuestreado al tamaño y positivos del de "antes de T".
+            (< T / >= T), más dos controles de tamaño con datos de todo el período: (a) mismas filas y positivos que
+            "antes de T" y (b) además la misma cantidad de vehículos con evento (lo que importa según la curva).
+  retrain   Despliegue simulado desde T con reentrenos: estático, trimestral y mensual (etiquetas conocidas a cada fecha).
+  drift     Origen de la deriva: validación adversarial (¿se distinguen los días antes/después de T?), ablación de las
+            features que más cambian y evolución temporal de eventos y tasas.
 
-Salidas: data/learning_curve.json, data/temporal_decomp.json
+Salidas: data/learning_curve.json, data/temporal_decomp.json, data/retrain.json, data/drift.json
 """
 import json
 import sys
@@ -126,8 +130,22 @@ def temporal_decomp(reps=3):
                                 rng.choice(idx_neg, n_pre - pos_pre, replace=False)])
             ctrl.append(fit_gbm(f.loc[r, cols], y[r]).predict_proba(f[cols])[:, 1])
         preds["todo_submuestreado"] = np.mean(ctrl, 0)
+        # control (b): además, tantos vehículos con evento como "antes de T" (el resto de los positivos se descarta)
+        veh = f["v"].values
+        pos_veh_pre = np.unique(veh[train["antes_de_T"] & (y == 1)])
+        pos_veh_all = np.unique(veh[train["todo"] & (y == 1)])
+        ctrl = []
+        for rep in range(reps):
+            rng = np.random.default_rng(100 + rep)
+            keep = rng.choice(pos_veh_all, len(pos_veh_pre), replace=False)
+            ok = train["todo"] & (~np.isin(veh, pos_veh_all) | np.isin(veh, keep))
+            ip, ineg = np.where(ok & (y == 1))[0], np.where(ok & (y == 0))[0]
+            r = np.concatenate([ip, rng.choice(ineg, min(len(ineg), n_pre - len(ip)), replace=False)])
+            ctrl.append(fit_gbm(f.loc[r, cols], y[r]).predict_proba(f[cols])[:, 1])
+        preds["todo_mismos_eventos"] = np.mean(ctrl, 0)
         out = {"train_rows": {"todo": int(train["todo"].sum()), "antes_de_T": n_pre},
-               "train_pos": {"todo": int(y[train["todo"]].sum()), "antes_de_T": pos_pre}}
+               "train_pos": {"todo": int(y[train["todo"]].sum()), "antes_de_T": pos_pre},
+               "train_event_vehicles": {"todo": len(pos_veh_all), "antes_de_T": len(pos_veh_pre)}}
         for per, sel in (("antes_de_T", ~post), ("desde_T", post), ("todo", np.ones_like(post))):
             te = tev & m & sel
             yt, v = y[te], f["v"].values[te]
@@ -139,18 +157,108 @@ def temporal_decomp(reps=3):
             out[f"eval_{per}"]["delta_antes_de_T_vs_todo"] = paired_ci(yt, preds["todo"][te], preds["antes_de_T"][te], v)
             out[f"eval_{per}"]["delta_submuestreado_vs_todo"] = paired_ci(yt, preds["todo"][te],
                                                                           preds["todo_submuestreado"][te], v)
+            out[f"eval_{per}"]["delta_antes_de_T_vs_mismos_eventos"] = paired_ci(
+                yt, preds["todo_mismos_eventos"][te], preds["antes_de_T"][te], v)
         res[f"H{h}"] = out
-        print(f"H{h}: train todo {out['train_rows']['todo']} filas / {out['train_pos']['todo']} pos; "
-              f"antes de T {n_pre} / {pos_pre}", flush=True)
+        print(f"H{h}: train todo {out['train_rows']['todo']} filas / {out['train_pos']['todo']} pos / "
+              f"{len(pos_veh_all)} vehículos con evento; antes de T {n_pre} / {pos_pre} / {len(pos_veh_pre)}", flush=True)
         for per in ("antes_de_T", "desde_T", "todo"):
             e = out[f"eval_{per}"]
             print(f"  evalúa {per:10s} ({e['n_vehicles']} veh, {e['n_event_vehicles']} con evento, base {e['base_rate']:.3f}): "
                   + " | ".join(f"{n} {e[n]['auc']:.3f} {np.round(e[n]['auc_ci95'], 3)}" for n in preds)
                   + f" | Δ antes_de_T {e['delta_antes_de_T_vs_todo'][0]:+.3f} {e['delta_antes_de_T_vs_todo'][1]}"
-                  + f" | Δ submuestreado {e['delta_submuestreado_vs_todo'][0]:+.3f} {e['delta_submuestreado_vs_todo'][1]}",
+                  + f" | Δ submuestreado {e['delta_submuestreado_vs_todo'][0]:+.3f} {e['delta_submuestreado_vs_todo'][1]}"
+                  + f" | Δ antes_de_T vs mismos_eventos {e['delta_antes_de_T_vs_mismos_eventos'][0]:+.3f} "
+                  + f"{e['delta_antes_de_T_vs_mismos_eventos'][1]}",
                   flush=True)
     json.dump(res, open("data/temporal_decomp.json", "w"), indent=2, default=float)
 
 
+# ---------------- 3. frecuencia de reentrenamiento ----------------
+def retrain(policies=(("estatico", None), ("trimestral", "QS"), ("mensual", "MS"))):
+    """En cada fecha de reentreno t se ajusta con las etiquetas conocidas en t y se predice hasta el próximo reentreno."""
+    f = load()
+    cols = feature_cols(f)
+    end = f["day"].max() + pd.Timedelta(days=1)
+    every = np.ones(len(f), bool)
+    scen = {"vehiculos_nuevos": ((f["fold"] >= 0).values, (f["fold"] == -1).values), "misma_flota": (every, every)}
+    res = {"T": str(T.date())}
+    for sc, (trs, tes) in scen.items():
+        res[sc] = {}
+        for h in HORIZONS:
+            m, y = f[f"m{h}"].values, f[f"y{h}"].values
+            preds = {}
+            for name, freq in policies:
+                dates = list(pd.date_range(T, end, freq=freq)) if freq else [T]
+                p = np.full(len(f), np.nan)
+                for i, t in enumerate(dates):
+                    nxt = dates[i + 1] if i + 1 < len(dates) else end
+                    rows = trs & known_at(f, h, t).values
+                    sel = tes & (f["day"] >= t).values & (f["day"] < nxt).values
+                    p[sel] = fit_gbm(f.loc[rows, cols], y[rows]).predict_proba(f.loc[sel, cols])[:, 1]
+                preds[name] = p
+            te = tes & (f["day"] >= T).values & m
+            yt, v = y[te], f["v"].values[te]
+            out = {}
+            for name, p in preds.items():
+                ci, _ = cluster_ci(yt, p[te], v, n=200)
+                out[name] = {"auc": roc_auc_score(yt, p[te]), "auc_ci95": ci}
+                if name != "estatico":
+                    out[name]["delta_vs_estatico"] = paired_ci(yt, preds["estatico"][te], p[te], v)
+            res[sc][f"H{h}"] = out
+            print(f"{sc} H{h}: " + " | ".join(
+                f"{n} {o['auc']:.3f} {np.round(o['auc_ci95'], 3)}"
+                + (f" Δ {o['delta_vs_estatico'][0]:+.3f} {o['delta_vs_estatico'][1]}" if "delta_vs_estatico" in o else "")
+                for n, o in out.items()), flush=True)
+    json.dump(res, open("data/retrain.json", "w"), indent=2, default=float)
+
+
+# ---------------- 4. origen de la deriva ----------------
+def drift(top_k=(5, 10, 20)):
+    import lightgbm as lgb
+    from sklearn.model_selection import GroupKFold
+    f = load()
+    cols = feature_cols(f)
+    post = (f["day"] >= T).values
+    res = {"T": str(T.date())}
+    # (a) validación adversarial: ¿un modelo distingue días antes / después de T? CV agrupada por vehículo
+    oof, imp = np.zeros(len(f)), pd.Series(0.0, index=cols)
+    for tr, te in GroupKFold(5).split(f, post, f["v"]):
+        m = lgb.LGBMClassifier(n_estimators=300, learning_rate=0.05, num_leaves=31, subsample=0.8, subsample_freq=1,
+                               colsample_bytree=0.5, verbose=-1, random_state=0).fit(f.iloc[tr][cols], post[tr])
+        oof[te] = m.predict_proba(f.iloc[te][cols])[:, 1]
+        imp += pd.Series(m.booster_.feature_importance("gain"), cols)
+    imp = (imp / imp.sum()).sort_values(ascending=False)
+    res["adversarial_auc"] = roc_auc_score(post, oof)
+    res["adversarial_top"] = imp.head(20).round(4).to_dict()
+    print(f"validación adversarial antes/después de T: AUC {res['adversarial_auc']:.3f}")
+    print("features que más separan los períodos:\n" + imp.head(20).round(3).to_string(), flush=True)
+    # (b) ablación: modelo de despliegue (etiquetas conocidas en T, vehículos de train) sin las features que más derivan
+    trv, tev = (f["fold"] >= 0).values, (f["fold"] == -1).values
+    res["ablation"] = {}
+    for h in HORIZONS:
+        m, y = f[f"m{h}"].values, f[f"y{h}"].values
+        rows = trv & known_at(f, h, T).values
+        r = {}
+        for k in (0,) + tuple(top_k):
+            use = [c for c in cols if c not in set(imp.index[:k])]
+            p = fit_gbm(f.loc[rows, use], y[rows]).predict_proba(f[use])[:, 1]
+            r[f"sin_top{k}"] = {per: roc_auc_score(y[tev & m & sel], p[tev & m & sel])
+                                for per, sel in (("antes_de_T", ~post), ("desde_T", post))}
+        res["ablation"][f"H{h}"] = r
+        print(f"ablación H{h} (AUC holdout antes / desde T): " + " | ".join(
+            f"{k} {v['antes_de_T']:.3f} / {v['desde_T']:.3f}" for k, v in r.items()), flush=True)
+    # (c) etiquetas en el tiempo: eventos por trimestre y tasa por vehículo activo; tasa de positivos y90 por trimestre
+    s = pd.read_parquet("data/static.parquet")
+    ev = pd.Series(pd.to_datetime(np.concatenate([np.array(e, dtype="datetime64[D]") for e in s["events"] if len(e)])))
+    q = f["day"].dt.to_period("Q")
+    tl = pd.DataFrame({"eventos": ev.dt.to_period("Q").value_counts(), "vehiculos_activos": f.groupby(q)["v"].nunique(),
+                       "y90_rate": f[f["m90"]].groupby(q[f["m90"]])["y90"].mean()}).sort_index()
+    tl["eventos_por_100_vehiculos"] = 100 * tl["eventos"] / tl["vehiculos_activos"]
+    res["timeline"] = {str(k): v for k, v in tl.round(4).to_dict("index").items()}
+    print(tl.round(3).to_string())
+    json.dump(res, open("data/drift.json", "w"), indent=2, default=float)
+
+
 if __name__ == "__main__":
-    learning() if "learning" in sys.argv else temporal_decomp()
+    {"learning": learning, "retrain": retrain, "drift": drift}.get(next(iter(sys.argv[1:]), ""), temporal_decomp)()

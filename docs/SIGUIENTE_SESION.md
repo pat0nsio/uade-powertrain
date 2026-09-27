@@ -14,22 +14,23 @@ El plan anterior (mejoras de la red neuronal con GPU) está completo. Resultados
 | 2.4 Cierre | Pipeline completo re-corrido, dashboard probado con `AppTest` (4 vistas OK), documentación actualizada. |
 | Extra | `src/data.py` ahora es determinista (antes ~0.1 % de los días variaba según la cantidad de hilos de DuckDB). |
 
-## ¿El límite son los datos? (hecho, `python -m src.diagnose temporal|learning`)
+## ¿El límite son los datos? (hecho, `python -m src.diagnose temporal|learning|retrain|drift`)
 
-- **Caída temporal = deriva.** Con el 28 % de las filas el LightGBM rinde igual; el período posterior a T se predice
-  bien (0.767) si el modelo lo vio, y cae a 0.653 si no (ΔAUC −0.116 [−0.19, −0.04]). No se sabe todavía si la deriva
-  es física (estación, envejecimiento) o del proceso de etiquetado.
-- **Curva de aprendizaje**: ~+0.03 AUC por duplicación de vehículos, sin aplanarse (LightGBM 0.742 / 0.771 / 0.788 /
-  0.800 con 25 / 50 / 75 / 100 %). Días por vehículo no aportan.
-- Detalle: README, sección "¿Qué limita el desempeño?"; salidas en `data/temporal_decomp.json` y
-  `data/learning_curve.json`.
+- **Caída temporal (0.78 → 0.65) = mitad falta de eventos, mitad deriva.** Recortar filas no cuesta nada; limitar a los
+  66 vehículos con evento que había en T cuesta ~0.05; el período, ~0.06 más. (Una primera versión del control igualaba
+  solo filas y concluía erróneamente que era todo deriva.)
+- **Curva de aprendizaje**: ~+0.03 AUC por duplicación de vehículos, sin aplanarse.
+- **Deriva**: las features cambian (adversarial AUC 0.88) pero quitarlas no ayuda; cambia la relación con el evento a
+  medida que la flota envejece (eventos por 100 vehículos: 1.3 → 8.6 por trimestre).
+- **Reentreno mensual**: +0.035 a +0.058 AUC en la flota monitoreada; ≈0 en vehículos nuevos.
+- Detalle: README, sección "¿Qué limita el desempeño?"; salidas `data/{temporal_decomp,learning_curve,retrain,drift}.json`.
 
 ## Próximos pasos sugeridos
 
-1. **Frecuencia de reentrenamiento**: simular despliegue con reentrenos mensuales / trimestrales después de T y medir
-   cuánto se recupera del 0.653.
-2. **Origen de la deriva**: validación adversarial (clasificar días antes vs después de T) para ver qué features
-   cambian, y revisar si la tasa y el calendario de identificación de eventos cambian en el tiempo.
+1. Reentreno mensual en producción para la flota monitoreada; ver si pesar los datos recientes o la historia propia del
+   vehículo mejora a los vehículos nuevos.
+2. Conseguir más vehículos con evento (la palanca con mayor retorno medido) y, si es posible, fechas de inicio de
+   síntomas en lugar de fechas de identificación en taller.
 
 ## Pendiente
 

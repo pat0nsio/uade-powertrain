@@ -193,21 +193,40 @@ línea base (se corrieron antes de regenerar los datos, por eso difieren en la t
   mejora poco: ΔAUC de a pares +0.003 / +0.002 / +0.000 en OOF (dentro del ruido) y +0.012 / +0.012 / +0.008 en holdout.
   La red aprendió casi lo mismo que el LightGBM.
 
-## ¿Qué limita el desempeño? (`python -m src.diagnose temporal|learning`)
+## ¿Qué limita el desempeño? (`python -m src.diagnose temporal|learning|retrain|drift`)
 
-**1. La caída temporal es deriva, no falta de datos.** LightGBM, AUC a 90 d en los vehículos del holdout:
+**1. La caída temporal es mitad falta de eventos, mitad deriva.** LightGBM, AUC a 90 d en los vehículos del holdout:
 
-| Entrenado con… | Evalúa antes de T | Evalúa desde T |
-|---|---|---|
-| todo el período | 0.788 | 0.767 |
-| solo lo conocido en T (despliegue real) | 0.770 | **0.653** |
-| todo, submuestreado al tamaño y positivos de "antes de T" (28 % de las filas) | 0.794 | 0.771 |
+| Entrenado con… | Vehículos con evento | Evalúa antes de T | Evalúa desde T |
+|---|---|---|---|
+| todo el período | 217 | 0.788 | 0.767 |
+| todo, 28 % de las filas (mismas filas y positivos que "antes de T") | ~217 | 0.794 | 0.771 |
+| todo, pero solo 66 vehículos con evento | 66 | 0.734 | 0.715 |
+| solo lo conocido en T (despliegue real) | 66 | 0.770 | **0.653** |
 
-Con el 28 % de las filas el modelo rinde igual (ΔAUC +0.004 [−0.013, +0.021]), y el período posterior a T no es más
-difícil para un modelo que lo vio (0.767). Lo que cae es el modelo que no vio ese período: −0.116 [−0.190, −0.043] (a
-30 y 60 d, −0.080 y −0.126). La relación entre telemetría y eventos cambia con el tiempo; puede ser física (estación,
-envejecimiento de la flota) o del proceso de etiquetado (cuándo los talleres identifican eventos); este test no las
-separa. Consecuencia práctica: **reentrenar seguido pesa más que cualquier mejora de modelo**.
+- Recortar **filas** no cuesta nada; recortar **vehículos con evento** a los 66 que había en T cuesta ~0.05.
+- El resto (~0.06) es el período: con los mismos 66 vehículos con evento, entrenar solo con datos anteriores a T rinde
+  menos después de T (ΔAUC −0.063 [−0.129, +0.007] a 90 d; −0.071 [−0.135, −0.005] a 60 d).
+- Por eso la validación temporal es **pesimista para el modelo actual**: en T había 66 vehículos con evento en train;
+  hoy hay 217.
+
+**Origen de la deriva.** Las features cambian mucho entre períodos (un clasificador distingue días antes/después de T
+con AUC 0.88: vida de aceite, desvíos respecto de la propia historia, temperatura ambiente, país), pero sacar las 5–20
+que más cambian **no** mejora el AUC después de T (lo baja a 0.620–0.625). Lo que cambia es la relación con el evento:
+la flota se incorporó entre fines de 2024 y fines de 2025, y los eventos por 100 vehículos activos por trimestre pasan
+de 1.3 (2025T1) a 5.9 (2025T4) y 8.6 (2026T1); los eventos anteriores a T son de vehículos jóvenes.
+
+**Reentrenar.** Despliegue simulado desde T con reentrenos que usan las etiquetas conocidas a cada fecha (AUC 30 / 60 /
+90 d; Δ de a pares contra el modelo estático):
+
+| Escenario | Estático | Trimestral | Mensual |
+|---|---|---|---|
+| Misma flota | 0.719 / 0.680 / 0.633 | 0.741 / 0.712 / 0.672 (+0.02 a +0.04*) | **0.755 / 0.723 / 0.691** (+0.035 a +0.058*) |
+| Vehículos nuevos | 0.722 / 0.664 / 0.653 | 0.699 / 0.677 / 0.653 (≈0) | 0.724 / 0.682 / 0.644 (≈0) |
+
+\* IC95 de la diferencia excluye 0. Reentrenar mensualmente mejora la flota ya monitoreada, pero no a los vehículos
+nuevos: la ganancia viene de aprender la historia reciente de esos mismos vehículos, no de corregir la deriva general.
+Para vehículos nuevos la palanca es acumular eventos.
 
 **2. Más vehículos sí ayudarían; más días por vehículo no.** Curva de aprendizaje (AUC OOF 90 d; 5 repeticiones para el
 LightGBM, 2 para la red):
@@ -220,13 +239,13 @@ LightGBM, 2 para la red):
 | 635 (178) | 0.800 | 0.781 |
 
 Cada duplicación de vehículos suma ~+0.03 de AUC y la curva todavía no se aplana (algo menos en el último tramo). La red
-necesita más datos que el LightGBM para alcanzarlo. Recortar días manteniendo los vehículos (test 1) no cuesta nada: la
+necesita más datos que el LightGBM para alcanzarlo. Recortar días manteniendo los vehículos no cuesta nada: la
 información está en la cantidad de vehículos y eventos independientes.
 
 ## Limitaciones y próximos pasos
 
-- El desempeño cae hacia el futuro por deriva (ver "¿Qué limita el desempeño?"): conviene reentrenar seguido (falta
-  medir con qué frecuencia) y recalibrar el X % de la política relativa con la capacidad de atención de la red de concesionarios.
+- El desempeño cae hacia el futuro, mitad por falta de eventos y mitad por deriva (ver "¿Qué limita el desempeño?"):
+  reentrenar **mensualmente** para la flota monitoreada y recalibrar el X % de la política relativa con la capacidad de atención de la red de concesionarios.
 - 56 eventos en el holdout y 36 en el temporal: los IC son anchos.
 - No hay GPS, presión de neumáticos ni DPF en % en los datos entregados (difieren del anexo de la consigna).
 - Los perfiles de conductor (clustering) muestran tasas de falla afectadas por el diseño muestral de las listas de

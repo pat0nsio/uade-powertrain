@@ -727,11 +727,12 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
 
 ## 13. Limitaciones conocidas y deuda técnica
 
-- **Deriva temporal**: el AUC a 90 d baja de ~0.78 (holdout por vehículo) a ~0.65 (temporal). `src/diagnose.py
-  temporal` muestra que no es falta de datos ni un período más difícil: un LightGBM con el 28 % de las filas rinde igual,
-  y el período posterior a $T$ se predice bien (0.767) si el modelo lo vio; sin verlo cae −0.116 (IC95 −0.19, −0.04).
-  Se recomienda reentrenar seguido (frecuencia por medir) y recalibrar el X % de la política relativa con la capacidad
-  de la red de concesionarios.
+- **Deriva temporal**: el AUC a 90 d baja de ~0.78 (holdout por vehículo) a ~0.65 (temporal). `src/diagnose.py`
+  lo descompone: ~0.05 por tener menos vehículos con evento (66 en $T$ contra 217 hoy; recortar solo filas no cuesta
+  nada) y ~0.06 por el período (IC95 −0.13 a +0.01 a 90 d; −0.14 a −0.005 a 60 d). Las features cambian mucho entre
+  períodos (validación adversarial AUC 0.88), pero sacar las que más cambian no ayuda: cambia la relación con el evento
+  a medida que la flota envejece (eventos por 100 vehículos activos: 1.3 → 5.9 → 8.6 por trimestre). Reentrenar
+  mensualmente mejora la flota monitoreada (+0.035 a +0.058 AUC, IC95 excluye 0) pero no a vehículos nuevos.
 - **Tamaño muestral en vehículos**: la curva de aprendizaje (`src/diagnose.py learning`) sube ~+0.03 de AUC por cada
   duplicación de vehículos (LightGBM 0.742 → 0.771 → 0.788 → 0.800 con 25/50/75/100 %) y no se aplana; más días por
   vehículo no aportan.
