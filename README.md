@@ -105,14 +105,17 @@ Se comparan dos políticas de alerta:
   de toda la flota en los últimos 30 días. Es causal y no usa etiquetas, así que se calcula en producción; además fija
   el volumen de alertas por diseño, aunque la flota entera se desplace.
 
-| | Detección (IC95) | Anticipación mediana | Falsas alarmas / vehículo-año |
+| | Detección (IC95) | Anticipación mediana (IC95 km) | Falsas alarmas / vehículo-año |
 |---|---|---|---|
-| Advertencia ECU actual | 55 % (43–68 %) | 100 días | 0.60 |
-| Umbral fijo (10 % de días-sanos) | 86 % (75–95 %) | 106 días | 0.63 |
-| **Umbral relativo (top 20 % de la flota)** | **89 % (80–96 %)** | 124 días | **0.61** |
+| Advertencia ECU actual | 55 % (43–68 %) | 100 días · 4 313 km (2 214–7 131) | 0.60 |
+| Umbral fijo (10 % de días-sanos) | 86 % (75–95 %) | 106 días · 3 368 km (2 241–4 984) | 0.63 |
+| **Umbral relativo (top 20 % de la flota)** | **89 % (80–96 %)** | 124 días · 4 492 km (3 322–6 445) | **0.61** |
+
+La anticipación en km es lo recorrido entre la primera alerta y el evento (suma de los km diarios de los viajes), en los
+eventos detectados.
 
 La misma comparación fuera de fold (237 eventos de train) da 88 % (fijo) y 90 % (relativo) contra 53 % de la ECU. La ventaja es en **cuántos** eventos se
-detectan; en **días de anticipación** no hay diferencia.
+detectan; en **anticipación** (días o km) no hay diferencia.
 
 **Qué pesa en el riesgo** (SHAP agrupado): regeneraciones ≈ patrón de uso > hollín ≈ vehículo/mercado > térmico/arranques en frío.
 

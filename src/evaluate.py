@@ -57,8 +57,10 @@ def leadtime(p, score, thr):
             if len(w) < 5:
                 continue
             al = w[w[score] >= thr]
-            rows.append({"v": v, "event": ev, "detected": len(al) > 0,
-                         "lead_days": (ev - al["day"].min()).days if len(al) else 0})
+            r = {"v": v, "event": ev, "detected": len(al) > 0, "lead_days": (ev - al["day"].min()).days if len(al) else 0}
+            if "cum_km" in g:  # km recorridos entre la primera alerta y el evento
+                r["lead_km"] = g.loc[g["day"] <= ev, "cum_km"].iloc[-1] - al["cum_km"].iloc[0] if len(al) else 0.0
+            rows.append(r)
     lt = pd.DataFrame(rows)
     h = p[p["failed"] == 0].copy()
     # episodio de alerta = día en alarma sin otra alerta emitida en los COOLDOWN días previos (no se re-notifica)
@@ -66,9 +68,12 @@ def leadtime(p, score, thr):
     gap = on.groupby("v")["day"].diff().dt.days
     starts = int((gap.isna() | (gap > COOLDOWN)).sum())
     years = h.groupby("v")["day"].agg(lambda d: (d.max() - d.min()).days + 1).sum() / 365
-    return lt, {"detection_rate": lt["detected"].mean(), "median_lead_days": lt.loc[lt.detected, "lead_days"].median(),
-                "mean_lead_days": lt.loc[lt.detected, "lead_days"].mean(), "healthy_day_alarm_rate": (h[score] >= thr).mean(),
-                "false_alarm_episodes_per_vehicle_year": starts / years, "n_events": len(lt)}
+    out = {"detection_rate": lt["detected"].mean(), "median_lead_days": lt.loc[lt.detected, "lead_days"].median(),
+           "mean_lead_days": lt.loc[lt.detected, "lead_days"].mean(), "healthy_day_alarm_rate": (h[score] >= thr).mean(),
+           "false_alarm_episodes_per_vehicle_year": starts / years, "n_events": len(lt)}
+    if "lead_km" in lt:
+        out["median_lead_km"] = lt.loc[lt.detected, "lead_km"].median()
+    return lt, out
 
 
 REL_PCTS = (0.01, 0.02, 0.05, 0.10, 0.15, 0.20, 0.30)
@@ -115,6 +120,10 @@ def main():
     p = p.sort_values(["v", "day"]).reset_index(drop=True)
     f = f.set_index(["v", "day"]).loc[pd.MultiIndex.from_frame(p[["v", "day"]])].reset_index()
     test, oof = p["fold"] == -1, p["fold"] >= 0
+    # km acumulados por vehículo (suma de los km diarios de los viajes) -> anticipación en km
+    cal = pd.read_parquet("data/calendar.parquet", columns=["v", "day", "km"])
+    cal["cum_km"] = cal.groupby("v")["km"].cumsum()
+    p["cum_km"] = cal.set_index(["v", "day"])["cum_km"].reindex(pd.MultiIndex.from_frame(p[["v", "day"]])).values
     M = {"n_vehicles_test": int(p.loc[test, "v"].nunique()), "n_vehicles_train": int(p.loc[oof, "v"].nunique())}
 
     # ---- discriminación por modelo / horizonte ----
@@ -180,8 +189,10 @@ def main():
         bs = [e.iloc[rng.integers(0, len(e), len(e))] for _ in range(1000)]
         det = [b["detected"].mean() for b in bs]
         ld = [b.loc[b.detected, "lead_days"].median() for b in bs]
+        lk = [b.loc[b.detected, "lead_km"].median() for b in bs]
         M[f"ci95_{name}"] = {"detection": np.percentile(det, [2.5, 97.5]).tolist(),
-                             "median_lead_days": np.nanpercentile(ld, [2.5, 97.5]).tolist()}
+                             "median_lead_days": np.nanpercentile(ld, [2.5, 97.5]).tolist(),
+                             "median_lead_km": np.nanpercentile(lk, [2.5, 97.5]).tolist()}
     M["alarm_threshold"] = next(c["threshold"] for c in curve if c["target_fpr"] == op)
 
     # ---- umbral RELATIVO a la flota (alerta = top X% de riesgo de la flota en los últimos 30 días) ----
@@ -193,9 +204,11 @@ def main():
         lt, s = leadtime(p[test].assign(a=rel[pct][test.values]), "a", 0.5)
         rel_curve.append({"pct": pct, **s})
         rel_lead = lt if pct == rop else rel_lead
-    bs = [rel_lead.iloc[rng.integers(0, len(rel_lead), len(rel_lead))]["detected"].mean() for _ in range(1000)]
+    bs = [rel_lead.iloc[rng.integers(0, len(rel_lead), len(rel_lead))] for _ in range(1000)]
     M.update(oof_relative_curve=oof_rel, relative_curve=rel_curve, relative_operating_pct=rop,
-             ci95_relative={"detection": np.percentile(bs, [2.5, 97.5]).tolist()})
+             ci95_relative={"detection": np.percentile([b["detected"].mean() for b in bs], [2.5, 97.5]).tolist(),
+                            **{f"median_{k}": np.nanpercentile([b.loc[b.detected, k].median() for b in bs],
+                                                               [2.5, 97.5]).tolist() for k in ("lead_days", "lead_km")}})
     p["thr_rel"] = fleet_threshold(p, "score_s", rop)
     p["thr_rel_med"] = fleet_threshold(p, "score_s", min(2 * rop, 0.5))
 

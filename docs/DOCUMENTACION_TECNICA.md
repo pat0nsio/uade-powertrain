@@ -532,7 +532,8 @@ Por modelo y horizonte, sobre filas $m_H$ del holdout:
 1. **Suavizado**: `score_s` = media móvil de 7 días (calendario) de `stack90` por vehículo.
 2. **Detección** (`leadtime`): para cada evento de un vehículo fallado se toma la ventana $[e - 180, e)$ (se requieren al
    menos 5 días con datos). El evento se considera **detectado** si hay al menos un día en alarma, y la **anticipación**
-   es $e - $ primer día en alarma.
+   es $e - $ primer día en alarma, en días y en **km** (km acumulados del vehículo hasta el evento menos los acumulados
+   hasta la primera alarma; los km diarios salen de los viajes, `calendar.parquet`).
 3. **Falsas alarmas**: sobre vehículos sanos, un **episodio** es un día en alarma sin otra alarma en los 30 días previos
    (*cooldown*: no se re-notifica). Se reporta como episodios por vehículo-año, sumando el tiempo observado de cada
    vehículo.
@@ -671,11 +672,11 @@ holdout coinciden, lo que indica generalización a vehículos nuevos; el 0.99 es
 
 **Alertas** (holdout):
 
-| Política | Detección (IC95) | Anticipación mediana | Falsas alarmas / vehículo-año |
+| Política | Detección (IC95) | Anticipación mediana (IC95 km) | Falsas alarmas / vehículo-año |
 |---|---|---|---|
-| ECU actual | 55 % (43–68 %) | 100 d | 0.60 |
-| Umbral fijo (10 % de días sanos) | 86 % (75–95 %) | 106 d | 0.63 |
-| Umbral relativo (top 20 %) | 89 % (80–96 %) | 124 d | 0.61 |
+| ECU actual | 55 % (43–68 %) | 100 d · 4 313 km (2 214–7 131) | 0.60 |
+| Umbral fijo (10 % de días sanos) | 86 % (75–95 %) | 106 d · 3 368 km (2 241–4 984) | 0.63 |
+| Umbral relativo (top 20 %) | 89 % (80–96 %) | 124 d · 4 492 km (3 322–6 445) | 0.61 |
 
 **Validación temporal** ($T$ = 2026-01-01, LightGBM):
 
@@ -685,7 +686,7 @@ holdout coinciden, lo que indica generalización a vehículos nuevos; el 0.99 es
 | Misma flota (194 eventos) | 0.72 | 0.66 | 43 % / 0.88 | 49 % / 0.40 | 38 % / 0.28 |
 
 **Interpretación.** La ventaja sostenida es en **cantidad de eventos detectados** a igual o menor tasa de falsas
-alarmas que la ECU. En días de anticipación no hay diferencia significativa. Hacia el futuro el desempeño cae (AUC 90 d
+alarmas que la ECU. En anticipación (días o km) no hay diferencia significativa. Hacia el futuro el desempeño cae (AUC 90 d
 ~0.65). A igual tasa de falsas alarmas, los umbrales fijo y relativo rinden parecido; el relativo aporta control del
 volumen de alertas.
 

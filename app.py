@@ -102,8 +102,8 @@ if view == "Flota":
     c = st.columns(4)
     c[0].metric("Vehículos monitoreados", f"{len(latest)}")
     c[1].metric("En alerta alta", f"{(latest['estado'] == 'Alto').sum()}")
-    c[2].metric("Anticipación mediana", f"{lc['median_lead_days']:.0f} días",
-                f"{lc['median_lead_days'] - (M['ecu_baseline']['median_lead_days'] or 0):+.0f} vs advertencia ECU")
+    c[2].metric("Anticipación mediana", f"{lc['median_lead_days']:.0f} días · {lc['median_lead_km']:,.0f} km".replace(",", "."),
+                f"{lc['median_lead_days'] - (M['ecu_baseline']['median_lead_days'] or 0):+.0f} días vs advertencia ECU")
     c[3].metric("Eventos detectados antes de ocurrir", f"{lc['detection_rate']:.0%}")
 
     l, r = st.columns([3, 2])
@@ -291,9 +291,11 @@ elif view == "Modelo y negocio":
         for key, name, color in [("leadtime_curve", "Umbral fijo", BLUE), ("relative_curve", "Umbral relativo a la flota", AQUA)]:
             lc = pd.DataFrame(M[key])
             fig.add_scatter(x=lc["false_alarm_episodes_per_vehicle_year"], y=lc["detection_rate"], mode="lines+markers",
-                            name=name, line=dict(color=color, width=2), marker=dict(size=8), customdata=lc["median_lead_days"],
+                            name=name, line=dict(color=color, width=2), marker=dict(size=8),
+                            customdata=lc[["median_lead_days", "median_lead_km"]],
                             hovertemplate="falsas alarmas/vehículo-año=%{x:.2f}<br>detección=%{y:.0%}"
-                                          "<br>anticipación mediana=%{customdata:.0f} días<extra></extra>")
+                                          "<br>anticipación mediana=%{customdata[0]:.0f} días · %{customdata[1]:,.0f} km"
+                                          "<extra></extra>")
         e = M["ecu_baseline"]
         fig.add_scatter(x=[e["false_alarm_episodes_per_vehicle_year"]], y=[e["detection_rate"]], mode="markers+text",
                         name="Advertencia ECU actual", marker=dict(color=ORANGE, size=11, symbol="diamond"),
