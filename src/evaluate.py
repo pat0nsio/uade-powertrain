@@ -12,14 +12,13 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
-from src.features import HORIZONS, feature_cols, outage
+from src.features import HORIZONS, feature_cols
 
 MODELS = ["gbm", "gru", "rsf", "stack"]
 FPRS = (0.01, 0.02, 0.05, 0.10, 0.15, 0.20, 0.30)
 LOOKBACK = 180  # días antes del evento en los que una alarma cuenta como anticipación
 COOLDOWN = 30  # días sin re-notificar tras una alerta
 SCORE = "stack90"
-OPERATING_FPR = 0.10  # punto de operación: misma tasa de falsas alarmas que la advertencia ECU actual
 
 GROUPS = {  # hipótesis física -> prefijos de features
     "Hollín / DPF": ["acc_", "soot", "sh_full", "sh_over", "sh_overloaded", "sh_end_full", "sh_end_over", "life_sh_over"],
@@ -72,12 +71,48 @@ def leadtime(p, score, thr):
                 "false_alarm_episodes_per_vehicle_year": starts / years, "n_events": len(lt)}
 
 
+REL_PCTS = (0.01, 0.02, 0.05, 0.10, 0.15, 0.20, 0.30)
+REL_WINDOW = 30  # días de historia de la flota para el umbral relativo
+
+
+def fleet_threshold(p, score, pct, window=REL_WINDOW):
+    """Umbral relativo causal: cuantil (1 - pct) del riesgo de TODA la flota en los últimos `window` días (hasta hoy).
+    No usa etiquetas -> se puede calcular en producción, y se ajusta solo si la flota entera se desplaza."""
+    d = p["day"].values.astype("datetime64[D]")
+    order = np.argsort(d, kind="stable")
+    ds, ss = d[order], p[score].values[order]
+    days = np.unique(ds)
+    lo = np.searchsorted(ds, days - np.timedelta64(window - 1, "D"))
+    hi = np.searchsorted(ds, days, side="right")
+    thr = np.array([np.nanquantile(ss[a if b - a >= 200 else 0:b], 1 - pct) for a, b in zip(lo, hi)])
+    return thr[np.searchsorted(days, d)]
+
+
+def pick_operating(curve, ecu):
+    """Mayor sensibilidad cuya tasa de falsas alarmas no supera la de la ECU."""
+    key = "target_fpr" if "target_fpr" in curve[0] else "pct"
+    ok = [c[key] for c in curve if c["false_alarm_episodes_per_vehicle_year"] <= ecu["false_alarm_episodes_per_vehicle_year"]]
+    return max(ok) if ok else min(c[key] for c in curve)
+
+
+def cluster_ci(y, s, veh, n=300, seed=0):
+    """IC 95% de AUC y AP remuestreando VEHÍCULOS (las filas de un mismo vehículo están correlacionadas)."""
+    rng = np.random.default_rng(seed)
+    y, s = np.asarray(y), np.asarray(s)
+    groups = list(pd.Series(np.arange(len(y))).groupby(np.asarray(veh)).indices.values())
+    aucs, aps = [], []
+    for _ in range(n):
+        idx = np.concatenate([groups[i] for i in rng.integers(0, len(groups), len(groups))])
+        if 0 < y[idx].sum() < len(idx):
+            aucs.append(roc_auc_score(y[idx], s[idx])); aps.append(average_precision_score(y[idx], s[idx]))
+    return np.percentile(aucs, [2.5, 97.5]).tolist(), np.percentile(aps, [2.5, 97.5]).tolist()
+
+
 def main():
     p = pd.read_parquet("data/preds.parquet")
     f = pd.read_parquet("data/features.parquet")
     p["day"] = pd.to_datetime(p["day"])
-    # evaluación solo antes del corte de telemetría de regeneraciones (igual que el entrenamiento)
-    p = p[p["day"] < outage()].sort_values(["v", "day"]).reset_index(drop=True)
+    p = p.sort_values(["v", "day"]).reset_index(drop=True)
     f = f.set_index(["v", "day"]).loc[pd.MultiIndex.from_frame(p[["v", "day"]])].reset_index()
     test, oof = p["fold"] == -1, p["fold"] >= 0
     M = {"n_vehicles_test": int(p.loc[test, "v"].nunique()), "n_vehicles_train": int(p.loc[oof, "v"].nunique())}
@@ -90,7 +125,10 @@ def main():
         wf = m & (p["failed"] == 1)
         for mod in MODELS:
             s = p.loc[m, f"{mod}{h}"]
+            auc_ci, ap_ci = cluster_ci(y, s, p.loc[m, "v"])
             disc.append({"model": mod, "H": h, "auc": roc_auc_score(y, s), "ap": average_precision_score(y, s),
+                         "auc_ci95": auc_ci, "ap_ci95": ap_ci,
+                         "oof_auc": roc_auc_score(p.loc[oof & p[f"m{h}"], f"y{h}"], p.loc[oof & p[f"m{h}"], f"{mod}{h}"]),
                          "auc_within_failed": roc_auc_score(p.loc[wf, f"y{h}"], p.loc[wf, f"{mod}{h}"]),
                          "base_rate": y.mean(), "brier": brier_score_loss(y, s.clip(0, 1))})
         s = -np.log(p.loc[m, "ae_err"])
@@ -113,6 +151,13 @@ def main():
     # línea base "reactiva": advertencia actual de la ECU (DPF sobre límite en la última semana)
     p["ecu_warning"] = (f["w7_sh_over"].fillna(0) > 0).astype(float).values
     ref = p.loc[oof & (p["failed"] == 0), "score_s"]
+    # punto de operación elegido SOLO con OOF: el mayor FPR cuya tasa de falsas alarmas no supere la de la ECU
+    ecu_oof = leadtime(p[oof], "ecu_warning", 0.5)[1]
+    oof_curve = [{"target_fpr": fpr, **leadtime(p[oof], "score_s", ref.quantile(1 - fpr))[1]} for fpr in FPRS]
+    ok = [c["target_fpr"] for c in oof_curve
+          if c["false_alarm_episodes_per_vehicle_year"] <= ecu_oof["false_alarm_episodes_per_vehicle_year"]]
+    op = max(ok) if ok else min(FPRS)
+    M["oof_leadtime_curve"], M["oof_ecu_baseline"] = oof_curve, ecu_oof
     lead, curve = [], []
     for fpr in FPRS:
         thr = ref.quantile(1 - fpr)
@@ -126,10 +171,10 @@ def main():
     lead.append(lt)
     M["leadtime_curve"] = curve
     pd.concat(lead).to_parquet("data/leadtime.parquet")
-    M["operating_fpr"] = OPERATING_FPR
+    M["operating_fpr"] = op
     # IC 95% bootstrap sobre eventos (holdout chico -> reportar incertidumbre)
     rng = np.random.default_rng(0)
-    for name, key in [("model", str(OPERATING_FPR)), ("ecu", "ECU")]:
+    for name, key in [("model", str(op)), ("ecu", "ECU")]:
         e = pd.concat(lead)
         e = e[e["target_fpr"] == key].reset_index(drop=True)
         bs = [e.iloc[rng.integers(0, len(e), len(e))] for _ in range(1000)]
@@ -137,7 +182,22 @@ def main():
         ld = [b.loc[b.detected, "lead_days"].median() for b in bs]
         M[f"ci95_{name}"] = {"detection": np.percentile(det, [2.5, 97.5]).tolist(),
                              "median_lead_days": np.nanpercentile(ld, [2.5, 97.5]).tolist()}
-    M["alarm_threshold"] = next(c["threshold"] for c in curve if c["target_fpr"] == OPERATING_FPR)
+    M["alarm_threshold"] = next(c["threshold"] for c in curve if c["target_fpr"] == op)
+
+    # ---- umbral RELATIVO a la flota (alerta = top X% de riesgo de la flota en los últimos 30 días) ----
+    rel = {pct: (p["score_s"].values >= fleet_threshold(p, "score_s", pct)).astype(float) for pct in REL_PCTS}
+    oof_rel = [{"pct": pct, **leadtime(p[oof].assign(a=rel[pct][oof.values]), "a", 0.5)[1]} for pct in REL_PCTS]
+    rop = pick_operating(oof_rel, ecu_oof)
+    rel_curve, rel_lead = [], None
+    for pct in REL_PCTS:
+        lt, s = leadtime(p[test].assign(a=rel[pct][test.values]), "a", 0.5)
+        rel_curve.append({"pct": pct, **s})
+        rel_lead = lt if pct == rop else rel_lead
+    bs = [rel_lead.iloc[rng.integers(0, len(rel_lead), len(rel_lead))]["detected"].mean() for _ in range(1000)]
+    M.update(oof_relative_curve=oof_rel, relative_curve=rel_curve, relative_operating_pct=rop,
+             ci95_relative={"detection": np.percentile(bs, [2.5, 97.5]).tolist()})
+    p["thr_rel"] = fleet_threshold(p, "score_s", rop)
+    p["thr_rel_med"] = fleet_threshold(p, "score_s", min(2 * rop, 0.5))
 
     # ---- SHAP global (GBM 90d) ----
     booster = lgb.Booster(model_file="models/gbm90.txt")
@@ -171,12 +231,14 @@ def main():
     veh.reset_index().to_parquet("data/profiles.parquet")
     M["profiles"] = veh.groupby("profile").agg(n=("failed", "size"), failure_rate=("failed", "mean")).to_dict("index")
 
-    p[["v", "day", "score_s", "ecu_warning"]].to_parquet("data/scores.parquet")
+    p[["v", "day", "score_s", "ecu_warning", "thr_rel", "thr_rel_med"]].to_parquet("data/scores.parquet")
     json.dump(M, open("data/metrics.json", "w"), indent=2, default=float)
     print(pd.DataFrame(disc).round(3).to_string())
     print("C-index RSF:", round(M["rsf_c_index"], 3))
     print(pd.DataFrame(curve).round(3).to_string())
-    print("CI95:", M["ci95_model"], M["ci95_ecu"])
+    print("punto de operación (elegido en OOF):", op, "| CI95:", M["ci95_model"], M["ci95_ecu"])
+    print("umbral relativo (elegido en OOF): top", rop, "| CI95 detección:", M["ci95_relative"])
+    print(pd.DataFrame(rel_curve).round(3).to_string())
     print("ECU baseline:", {k: round(v, 3) for k, v in M["ecu_baseline"].items()})
     print(pd.Series(M["shap_by_group"]).round(3))
     print(M["profiles"])

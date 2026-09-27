@@ -43,7 +43,7 @@ def num(col, lo, hi):
 
 def build():
     OUT.mkdir(exist_ok=True)
-    c = duckdb.connect()
+    c = duckdb.connect(config={"memory_limit": "4GB", "threads": 4})  # evita congelar máquinas de 16 GB
     q = {}
 
     # ---------- static ----------
@@ -112,7 +112,7 @@ def build():
     # ---------- dynamic (señales ECU del DPF) ----------
     for g, p in DYN.items():
         c.execute(f"""create table d_{g} as select distinct VehicleCode v, try_cast(eventTimestamp as timestamptz) ts,
-            {num('Acumulation', 0, 100)} acc, Message msg, Regenerations is not null reg,
+            {num('Acumulation', 0, 100)} acc, try_cast(OdometerValue as double) odo, Message msg, Regenerations is not null reg,
             case when try_cast(DistanceBetweenRegenerations as double) between 0 and 20000
                  then try_cast(DistanceBetweenRegenerations as double) end dbr
             from {csv(p)}""")
@@ -120,6 +120,23 @@ def build():
     q["dynamic_rows"] = c.execute("select count(*) from d").fetchone()[0]
     q["dynamic_negative_dbr_dropped"] = c.execute(f"""select count(*) from (select * from {csv(DYN['failed'])} union all
         select * from {csv(DYN['healthy'])}) where try_cast(DistanceBetweenRegenerations as double) < 0""").fetchone()[0]
+
+    # ---------- regeneraciones reconstruidas desde la señal de hollín ----------
+    # La bandera `Regenerations` deja de llegar para toda la flota (y ya venía degradándose), pero `Acumulation`
+    # sigue: una regeneración es una caída de hollín >= 20 puntos entre lecturas consecutivas (episodios a > 6 h).
+    # Validado contra la bandera antes del corte: recall 0.91, precisión 0.81, corr vehículo-mes 0.88.
+    c.execute("""create table dl as select v, ts, odo, lag(acc) over w - acc soot_drop from d
+        window w as (partition by v order by ts)""")
+    c.execute("""create table rg as select v, ts, case when odo - lag(odo) over w between 0 and 20000
+            then odo - lag(odo) over w end dbr
+        from (select *, lag(ts) over (partition by v order by ts) pts from dl where soot_drop >= 20)
+        where pts is null or epoch(ts - pts) > 6*3600 window w as (partition by v order by ts)""")
+    c.execute("create table rp as select v, ts from dl where soot_drop >= 10 and soot_drop < 20")
+    q["regen_reconstructed_episodes"] = c.execute("select count(*) from rg").fetchone()[0]
+    flag_end = c.execute("""select max(day) + 1 from (select ts::date as "day", count(*) n from d where reg group by 1)
+        where n >= 3""").fetchone()[0]
+    q["regen_flag_outage_from"] = str(flag_end)
+    q["regen_flag_msgs_after_outage"] = c.execute(f"select count(*) from d where ts >= '{flag_end}'").fetchone()[0]
 
     # ---------- agregación diaria ----------
     c.execute(f"""create table td as select v, lts::date as "day",
@@ -144,14 +161,13 @@ def build():
         avg((msg = 'Air Filter Overloaded')::int) sh_overloaded,
         avg((msg like 'Cleaning Automatically%')::int) sh_regen_msg,
         sum((msg like 'Stopped Clean%')::int) n_regen_stopped, sum((msg like 'Cleanning Manually%')::int) n_manual_regen,
-        sum(reg::int) n_regen, min(dbr) dbr_min, avg(dbr) dbr_mean
         from d group by 1, 2""")
-    # corte de telemetría: desde cierta fecha no llega NINGÚN evento de regeneración en toda la flota
-    # (los mensajes siguen llegando) -> esas variables son faltantes, no cero
-    outage = c.execute("select max(day) + 1 from (select day, sum(n_regen) n from dd group by 1) where n >= 3").fetchone()[0]
-    q["regen_telemetry_outage_from"] = str(outage)
-    q["regen_telemetry_msgs_after_outage"] = c.execute(f"select sum(n_msgs) from dd where day >= '{outage}'").fetchone()[0]
-    c.execute(f"update dd set n_regen = null, dbr_min = null, dbr_mean = null where day >= '{outage}'")
+    for tbl, cols in [("rg", "count(*) n_regen, min(dbr) dbr_min, avg(dbr) dbr_mean"), ("rp", "count(*) n_regen_partial")]:
+        c.execute(f"""create table {tbl}d as select v, ((ts at time zone 'UTC') - {LOCAL})::date as "day", {cols}
+            from {tbl} group by 1, 2""")
+    c.execute("""create or replace table dd as select dd.*, coalesce(rgd.n_regen, 0) n_regen, rgd.dbr_min, rgd.dbr_mean,
+        coalesce(rpd.n_regen_partial, 0) n_regen_partial
+        from dd left join rgd using (v, "day") left join rpd using (v, "day")""")
     c.execute("""create table daily as select coalesce(td.v, dd.v) v, coalesce(td.day, dd.day) as "day", td.* exclude (v, day), dd.* exclude (v, day)
         from td full join dd on td.v = dd.v and td.day = dd.day""")
     q["vehicle_days"] = c.execute("select count(*) from daily").fetchone()[0]

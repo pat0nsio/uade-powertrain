@@ -4,8 +4,6 @@ Salidas:
   data/calendar.parquet  vehículo x día calendario (incluye días sin uso) -> entrada de la red secuencial
   data/features.parquet  una fila por vehículo-día activo (punto de predicción) con features + labels
 """
-import json
-
 import numpy as np
 import pandas as pd
 
@@ -13,7 +11,7 @@ HORIZONS = (30, 60, 90)
 POST_EVENT_BLACKOUT = 14  # días post-service excluidos (transición / reparación)
 
 SUMS = ["n_trips", "km", "mins", "fuel_used", "soot_delta", "oil_drop", "regen_completed_in_trip",
-        "n_regen", "n_regen_stopped", "n_manual_regen", "n_msgs"]
+        "n_regen", "n_regen_partial", "n_regen_stopped", "n_manual_regen", "n_msgs"]
 TRIP_W = ["sh_short5", "sh_short10", "sh_micro", "sh_urban", "sh_never_warm", "sh_cold_start",
           "sh_trip_end_in_regen", "sh_end_full", "sh_end_over", "sh_night", "sh_idle",
           "etmax", "etavg", "cool_rise", "air", "soot_mean"]
@@ -27,13 +25,6 @@ NON_FEATURES = {"v", "day", "failed", "tte", "gap_to_end", "age_days", "usable",
                 *[f"m{h}" for h in HORIZONS]}
 
 
-REGEN_DERIVED = ["n_regen", "km_per_regen", "regen_stop_ratio"]
-
-
-def outage():
-    return pd.Timestamp(json.load(open("data/quality.json"))["regen_telemetry_outage_from"])
-
-
 def calendar(daily, static):
     """Reindexa cada vehículo a días calendario consecutivos; días sin uso quedan en 0/NaN."""
     out = []
@@ -44,9 +35,7 @@ def calendar(daily, static):
         g["active"] = g["n_trips"].notna() | g["n_msgs"].notna()
         g[SUMS] = g[SUMS].fillna(0)
         out.append(g.rename_axis("day").reset_index())
-    cal = pd.concat(out, ignore_index=True)
-    cal.loc[cal["day"] >= outage(), "n_regen"] = np.nan  # corte de telemetría: faltante, no cero
-    return cal
+    return pd.concat(out, ignore_index=True)
 
 
 def rolling(cal):
@@ -79,11 +68,9 @@ def rolling(cal):
         f[p + "km_per_regen"] = s["km"] / s["n_regen"].replace(0, np.nan)
         f[p + "km_per_trip"] = s["km"] / s["n_trips"].replace(0, np.nan)
         f[p + "regen_stop_ratio"] = s["n_regen_stopped"] / (s["n_regen"] + 1)
+        f[p + "regen_partial_ratio"] = s["n_regen_partial"] / (s["n_regen"] + s["n_regen_partial"]).replace(0, np.nan)
         f[p + "soot_per_km"] = s["soot_delta"].clip(lower=0) / s["km"].replace(0, np.nan)
 
-        # ventana que toca el corte de telemetría de regeneraciones -> faltante
-        hit = cal["day"] > outage() - pd.Timedelta(days=w)
-        f.loc[hit, [p + c for c in REGEN_DERIVED]] = np.nan
 
     # tendencias: corto plazo vs largo plazo (aceleración de la degradación)
     for c in ["acc_mean", "sh_over", "sh_full", "km_per_regen", "fuel_per100", "sh_short5", "soot_mean", "n_regen", "speed"]:
@@ -95,7 +82,7 @@ def rolling(cal):
     grp = regen.groupby(cal["v"]).cumsum()
     f["km_since_regen"] = cal["km"].groupby([cal["v"], grp]).cumsum()
     f["days_since_regen"] = cal.groupby([cal["v"], grp]).cumcount()
-    f.loc[(grp == 0) | (cal["day"] >= outage()), ["km_since_regen", "days_since_regen"]] = np.nan
+    f.loc[grp == 0, ["km_since_regen", "days_since_regen"]] = np.nan
 
     # desvío respecto de la propia historia del vehículo (solo pasado: expanding desplazado)
     for c in ["w30_acc_mean", "w30_sh_over", "w30_km_per_regen", "w30_fuel_per100", "w30_sh_short5"]:
@@ -108,8 +95,7 @@ def rolling(cal):
     f["life_sh_short5"] = cum(cal["sh_short5"].fillna(0) * cal["n_trips"]) / cum(cal["n_trips"]).replace(0, np.nan)
     f["life_sh_over"] = cum(cal["sh_over"].fillna(0) * cal["n_msgs"]) / cum(cal["n_msgs"]).replace(0, np.nan)
     f["life_regen_stopped_per_1000km"] = cum(cal["n_regen_stopped"]) / cum(cal["km"]).replace(0, np.nan) * 1000
-    f["life_km_per_regen"] = cum(cal["km"]) / cum(cal["n_regen"].fillna(0)).replace(0, np.nan)
-    f.loc[cal["day"] >= outage(), "life_km_per_regen"] = np.nan
+    f["life_km_per_regen"] = cum(cal["km"]) / cum(cal["n_regen"]).replace(0, np.nan)
     return f
 
 
@@ -130,8 +116,7 @@ def labels(cal, static):
         prev = np.where(k > 0, e[np.maximum(k - 1, 0)], np.datetime64("NaT"))
         since[idx] = np.where(k > 0, (d - prev).astype("timedelta64[D]").astype(float), np.inf)
     y = pd.DataFrame({"tte": tte, "gap_to_end": (last - cal["day"]).dt.days.values}, index=cal.index)
-    # corte administrativo simétrico: solo días previos al corte de telemetría (ambas cohortes por igual)
-    usable = (y["tte"] != 0) & (since > POST_EVENT_BLACKOUT) & (cal["day"] < outage()).values
+    usable = (y["tte"] != 0) & (since > POST_EVENT_BLACKOUT)
     y["usable"] = usable
     for h in HORIZONS:
         y[f"y{h}"] = (y["tte"] <= h).astype(int)

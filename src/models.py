@@ -10,6 +10,7 @@ Protocolo: 20% de vehículos en holdout (nunca vistos). Sobre el 80% restante, 5
 producen predicciones OOF (entrenan el stacker); el holdout recibe el promedio de los 5 modelos.
 Salida: data/preds.parquet, models/*.
 """
+import json
 from pathlib import Path
 
 import joblib
@@ -27,6 +28,8 @@ SEED, K, SEQ = 0, 5, 60
 MOD = Path("models")
 GBM_PARAMS = dict(n_estimators=500, learning_rate=0.03, num_leaves=31, min_child_samples=200, subsample=0.8,
                   subsample_freq=1, colsample_bytree=0.5, reg_lambda=1.0, verbose=-1, random_state=SEED)
+if (MOD / "gbm_params.json").exists():  # hiperparámetros elegidos por `python -m src.models tune` (solo con folds de train)
+    GBM_PARAMS.update(json.load(open(MOD / "gbm_params.json"))["best"])
 torch.manual_seed(SEED)
 torch.set_num_threads(max(1, torch.get_num_threads()))
 
@@ -326,6 +329,62 @@ def main():
     print("listo:", len(out), "filas")
 
 
+# Grilla chica y explícita (regularización creciente); la selección usa OOF de los folds de train, nunca el holdout
+GRID = [
+    dict(),  # configuración original
+    dict(num_leaves=15, min_child_samples=500, n_estimators=600),
+    dict(num_leaves=15, min_child_samples=1000, reg_lambda=10.0, n_estimators=600),
+    dict(num_leaves=31, min_child_samples=1000, reg_lambda=10.0, n_estimators=400),
+    dict(num_leaves=7, min_child_samples=500, n_estimators=800),
+    dict(num_leaves=31, min_child_samples=500, colsample_bytree=0.3, reg_lambda=5.0),
+    dict(num_leaves=15, min_child_samples=500, extra_trees=True, n_estimators=800),
+    dict(num_leaves=15, min_child_samples=1000, colsample_bytree=0.3, reg_lambda=10.0, learning_rate=0.02,
+         n_estimators=900),
+]
+
+
+def tune(h=90):
+    from sklearn.metrics import average_precision_score, roc_auc_score
+    f = pd.read_parquet("data/features.parquet")
+    cols = feature_cols(f)
+    f["fold"] = split(f)
+    base = {k: v for k, v in GBM_PARAMS.items()}
+    for k in {k for g in GRID for k in g}:  # partir siempre de la configuración original
+        base.pop(k, None)
+    base.update(n_estimators=500, learning_rate=0.03, num_leaves=31, min_child_samples=200, colsample_bytree=0.5,
+                reg_lambda=1.0, extra_trees=False)
+    res = []
+    for i, g in enumerate(GRID):
+        params = {**base, **g}
+        oof = pd.Series(np.nan, index=f.index)
+        fit_auc = []
+        for k in range(K):
+            tr = (f["fold"] >= 0) & (f["fold"] != k) & f[f"m{h}"]
+            va = (f["fold"] == k) & f[f"m{h}"]
+            m = lgb.LGBMClassifier(**params).fit(f.loc[tr, cols], f.loc[tr, f"y{h}"])
+            oof[va] = m.predict_proba(f.loc[va, cols])[:, 1]
+            fit_auc.append(roc_auc_score(f.loc[tr, f"y{h}"], m.predict_proba(f.loc[tr, cols])[:, 1]))
+        ok = oof.notna()
+        r = dict(config=i, **g, train_auc=np.mean(fit_auc), oof_auc=roc_auc_score(f.loc[ok, f"y{h}"], oof[ok]),
+                 oof_ap=average_precision_score(f.loc[ok, f"y{h}"], oof[ok]))
+        r["gap"] = r["train_auc"] - r["oof_auc"]
+        print({k: (round(v, 4) if isinstance(v, float) else v) for k, v in r.items()}, flush=True)
+        res.append(r)
+    res = pd.DataFrame(res)
+    # criterio: mejor promedio de rankings de AUC y AP OOF
+    best = int((res["oof_auc"].rank() + res["oof_ap"].rank()).idxmax())
+    MOD.mkdir(exist_ok=True)
+    json.dump({"best": {**base, **GRID[best]}, "horizon": h, "results": res.to_dict("records")},
+              open(MOD / "gbm_params.json", "w"), indent=2, default=float)
+    print("elegida:", best, GRID[best])
+
+
 if __name__ == "__main__":
     import sys
-    fit_whatif() if "whatif" in sys.argv else (main(), fit_whatif())
+    if "tune" in sys.argv:
+        tune()
+    elif "whatif" in sys.argv:
+        fit_whatif()
+    else:
+        main()
+        fit_whatif()
