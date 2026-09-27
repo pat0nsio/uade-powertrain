@@ -74,18 +74,20 @@ Principios de diseño:
 
 - **Pipeline por etapas con artefactos en disco** (Parquet/JSON): cada etapa se puede re-ejecutar de forma aislada y es
   inspeccionable.
-- **Pocos archivos, sin abstracciones innecesarias**: 5 módulos en `src/` más la app. Cada módulo se ejecuta con
+- **Pocos archivos, sin abstracciones innecesarias**: 7 módulos en `src/` más la app. Cada módulo se ejecuta con
   `python -m src.<módulo>`.
 - **Toda decisión de datos es trazable**: los conteos de descartes, anomalías y reconstrucciones se persisten en
   `data/quality.json` y se muestran en el dashboard.
 
 | Archivo | Líneas | Responsabilidad |
 |---|---|---|
-| `src/data.py` | ~185 | Ingesta DuckDB, limpieza, anclaje temporal, reconstrucción de regeneraciones, agregación diaria |
+| `src/config.py` | ~40 | Recursos por máquina (`config.local.json`): DuckDB, dispositivo, precisión mixta, parámetros de la red |
+| `src/data.py` | ~215 | Ingesta DuckDB, limpieza, anclaje temporal, reconstrucción de regeneraciones, agregación diaria |
 | `src/features.py` | ~170 | Calendario continuo, ventanas móviles, variables de estado/tendencia, etiquetas con censura, test anti-leakage |
-| `src/models.py` | ~390 | Split, LightGBM (+ tuning), RSF, GRU con atención, autoencoder, stacking, GBM monótono |
+| `src/models.py` | ~570 | Split, LightGBM (+ tuning), RSF, red híbrida con riesgo discreto, autoencoder, stacking, GBM monótono, experimentos de la red |
+| `src/pretrain.py` | ~100 | Pre-entrenamiento auto-supervisado del codificador de la red (opcional) |
 | `src/evaluate.py` | ~250 | Métricas con IC, políticas de alerta (fija/relativa), lead time vs ECU, SHAP, clustering |
-| `src/temporal.py` | ~110 | Validación de despliegue simulado en una fecha de corte |
+| `src/temporal.py` | ~170 | Validación de despliegue simulado en una fecha de corte (LightGBM y red) |
 | `app.py` | ~375 | Dashboard Streamlit (4 vistas) |
 
 ---
@@ -116,8 +118,9 @@ neumáticos ni `DieselParticulateFilter*`). La interpretación que usa el códig
 
 **Hallazgo sobre etiquetas v1.** En `StaticInformation_FailedVins.csv` (v1) se cumple
 `IdentificationDate == daysUntilSale` en el 76 % de las filas: el campo es la fecha de venta, no la de falla. Por eso se
-usan exclusivamente los archivos v2 para etiquetar. Los 297 vehículos fallados que están solo en v1 no se usan (no hay
-fecha de evento confiable).
+usan exclusivamente los archivos v2 para etiquetar. Los 297 vehículos fallados que están solo en v1 no se usan para
+entrenar ni evaluar (no hay fecha de evento confiable); solo entran, sin etiqueta, en el pre-entrenamiento opcional de la
+red (§6.4).
 
 ---
 
@@ -125,7 +128,8 @@ fecha de evento confiable).
 
 ### 4.1 Motor y configuración
 
-- **DuckDB** en memoria, con `memory_limit=4GB` y `threads=4`. El límite es obligatorio: sin él, DuckDB puede tomar
+- **DuckDB** en memoria, con `memory_limit=4GB` y `threads=4` por defecto (ajustable en `config.local.json`, ver
+  `src/config.py`). El límite es obligatorio: sin él, DuckDB puede tomar
   hasta ~80 % de la RAM y, con swap en zram, congelar una máquina de 16 GB. Esto ocurrió durante el desarrollo.
 - Todos los CSV se leen con `all_varchar=true` y se castean explícitamente con `try_cast`. Un valor malformado se
   convierte en `NULL` en lugar de abortar la lectura.
@@ -181,9 +185,11 @@ Reglas de exclusión, cada una contada por separado en `quality.json`:
 | Viaje > 1 500 km | `o1 - o0 > 1500` | 5 |
 | Velocidad > 200 km/h | `km/h > 200 and km > 2` | 288 |
 | **Total inválidos** (unión) | | 786 |
-| Duplicados | `DISTINCT ON (v, ts0)` | 40 760 |
+| Duplicados | mismo `(v, ts0)`: se conserva uno | 40 760 |
 
-Quedan **2 476 875 viajes**. La hora local se aproxima con un desfase fijo UTC−4 (flota LatAm, UTC−3…−5), usado para el
+Entre duplicados se conserva la fila con `row_number()` sobre un orden total de las columnas del viaje, y las lecturas
+de hollín con el mismo timestamp se desempatan por valor: así el resultado no depende de la cantidad de hilos de DuckDB
+(antes variaba ~0.1 % de los días entre corridas). Quedan **2 476 875 viajes**. La hora local se aproxima con un desfase fijo UTC−4 (flota LatAm, UTC−3…−5), usado para el
 día de agregación y para las variables nocturnas.
 
 ### 4.5 Reconstrucción de regeneraciones desde la señal de hollín
@@ -255,6 +261,8 @@ Dos agregaciones por (vehículo, día local), unidas con `FULL JOIN`, dan **284 
   `city`.
 - `data/daily.parquet`: la tabla vehículo-día.
 - `data/quality.json`: todos los conteos anteriores más la tasa de nulos por variable de viaje.
+- `data/daily_v1.parquet` (`python -m src.data v1`): la misma agregación diaria para los 297 fallados que solo están en
+  los archivos v1 (sin fecha de falla confiable). Solo la usa el pre-entrenamiento opcional (§6.4); no tiene etiquetas.
 
 ---
 
@@ -380,38 +388,77 @@ historia completa. Si alguna feature dependiera del futuro, el test falla.
   $\text{RUL} = \min\{t : S(t) < 0.5\}$ (si la curva nunca cruza 0.5 se reporta el máximo tiempo observado). La
   predicción se hace por lotes de 20 000 filas para acotar memoria.
 
-### 6.4 GRU multi-tarea con atención (red neuronal secuencial)
+### 6.4 Red neuronal híbrida con cabeza de riesgo discreto
 
-**Entrada.** Secuencia de los últimos **60 días calendario** del vehículo, terminando en el día de predicción, con 38
-variables diarias (`SUMS + TRIP_W + MSG_W + MAXS + MINS`) más el indicador `active`.
+La arquitectura se define en `ARCH` (`src/models.py`) y se eligió comparando variantes con AUC/AP OOF
+(`python -m src.models nn`); el holdout no intervino. Valor vigente: `seq=180, tab=True, head="hazard", pre=False`.
 
-- Las sumas se transforman con $\log(1+x)$.
-- Estandarización con media y desvío calculados **solo con las filas de entrenamiento** del fold; `NaN` → 0 y recorte
-  a ±6.
-- La clase `Seq` **no materializa** las ventanas: guarda el índice de fin de cada punto y arma cada batch indexando una
-  matriz única. Los días previos al inicio del vehículo apuntan a una fila de *padding* y se enmascaran.
+**Entradas.**
+
+- **Secuencia**: los últimos **180 días calendario** del vehículo, terminando en el día de predicción, con 38 variables
+  diarias (`SUMS + TRIP_W + MSG_W + MAXS + MINS`) más `active`. Sumas en $\log(1+x)$; estandarización con las filas de
+  entrenamiento del fold; `NaN` → 0; recorte a ±6. La clase `Seq` no materializa las ventanas: indexa una matriz única
+  ya subida al dispositivo (GPU o CPU), y los días previos al inicio del vehículo apuntan a una fila de *padding*
+  enmascarada.
+- **Tabulares** (`tab`): las 170 features de ingeniería del día de predicción, estandarizadas con el train, `NaN` → 0
+  más una máscara de faltantes (340 entradas), y embeddings de dimensión 4 de `Engine`, `ModelSeries` y `country`.
 
 **Arquitectura (`SeqNet`):**
 
 ```
-x ∈ R^{B×60×39} → Linear(39→64) + GELU → GRU(64, 1 capa) → h_1..h_60
-atención: a_t = softmax_t( w·h_t ), enmascarando padding     ctx = Σ a_t h_t
-cabeza: [ctx ‖ h_60] → Dropout(0.3) → Linear(128→64) + GELU → Linear(64→3)  → logits (30/60/90 d)
+x ∈ R^{B×180×39} → Linear(39→64) + GELU → GRU(64, 1 capa) → h_1..h_180
+atención: a_t = softmax_t( w·h_t ), enmascarando padding          ctx = Σ a_t h_t
+lateral:  [features ‖ máscara ‖ emb(Engine) ‖ emb(ModelSeries) ‖ emb(country)] → Linear(→64) + GELU → s
+cabeza:   [ctx ‖ h_180 ‖ s] → Dropout(0.3) → Linear(192→64) + GELU → Linear(64→26)   → logits de hazard semanal
 ```
+
+**Cabeza de riesgo discreto.** Hazard $h_j = \sigma(z_j)$ para las semanas $j = 0..25$. Con $k$ = semana del evento
+(si $\text{tte} \le 182$) o cantidad de semanas completas observadas sin evento (censura, con `gap_to_end`), la pérdida
+es la verosimilitud en tiempo discreto:
+$$-\log L = -\Big[\sum_{j<k} \log(1-h_j) + e\,\log h_k\Big], \qquad e = 1 \text{ si hubo evento dentro de 26 semanas}$$
+La supervivencia $S$ en los bordes de semana es $\exp$ de la suma acumulada de $\log(1-h_j)$; $P(T \le H)$ interpola
+$\log S$ dentro de la semana, así que las probabilidades a 30/60/90 d son **monótonas por construcción**. El RUL es el
+día en que $S$ cruza 0.5 (o ≥ 182 si no cruza) y se guarda en `gru_rul`. Las columnas `gru30/60/90` se mantienen para el
+stacking y el dashboard. (La cabeza anterior, `head="bce"`, sigue disponible: una BCE por horizonte enmascarada con
+$m_H$ y peso $\sqrt{\min((1-\bar y_h)/\bar y_h, 20)}$.)
 
 **Entrenamiento.**
 
-- Pérdida: BCE con logits, **enmascarada por horizonte** con $m_H$ (una fila puede ser válida para 30 d y censurada
-  para 90 d):
-  $$\mathcal{L} = \frac{\sum_{b,h} m_{bh}\,\text{BCE}(z_{bh}, y_{bh}; w_h)}{\sum_{b,h} m_{bh}}, \quad
-  w_h = \sqrt{\min\left(\tfrac{1-\bar y_h}{\bar y_h}, 20\right)}$$
-- Muestreo por época: todos los positivos más 15 % de negativos al azar.
-- AdamW (lr 2e-3, *weight decay* 1e-3), batch 512, *gradient clipping* 1.0, 6 épocas.
-- Los pesos de atención de todas las filas se guardan en `models/gru_attention.npy` (float16) para el dashboard.
+- Validación interna: ~15 % de los **vehículos** del train del fold, estratificado por fallado; también define el
+  escalado. **Parada temprana** por AP media de los 3 horizontes (paciencia 3, hasta 40 épocas) restaurando los mejores
+  pesos.
+- **Ensamble de 5 semillas**; la predicción es la media y el desvío entre semillas queda como incertidumbre por fila
+  (`gru{30,60,90}_std`).
+- Muestreo por época: todos los positivos más 15 % de negativos. AdamW (lr 2e-3, *weight decay* 1e-3), batch 512,
+  *gradient clipping* 1.0, precisión mixta fp16 en GPU (`GradScaler`); la atención se calcula en fp32.
+- Dispositivo, precisión mixta, semillas, épocas y batch salen de `config.local.json` (`src/config.py`); corre igual en
+  CPU. Con una Radeon RX 6650 XT (ROCm) una época tarda ~5 s y el pipeline completo ~15 min.
+- Los pesos de atención (media de las semillas) se guardan en `models/gru_attention.npy` para el dashboard.
 
-**Desempeño.** AUC ≈ 0.72 en holdout: es el componente más débil. Causas: pocas unidades independientes (~800
-vehículos), no ve las variables estáticas ni las de largo plazo (90 d, tasas de vida, *selfz*), la señal está en
-promedios sostenidos más que en el orden temporal, y el entrenamiento no tiene *early stopping*.
+**Pre-entrenamiento auto-supervisado (opcional, `pre=True`, no adoptado).** `src/pretrain.py` entrena la capa de entrada
+y la GRU con dos objetivos: reconstruir días enmascarados (15–30 % de la ventana; como la GRU es causal, cada día se
+reconstruye desde el pasado) y predecir las sumas de la semana siguiente de km, regeneraciones y hollín. Datos: el
+calendario de los vehículos de entrenamiento **de ese fold** más los 297 fallados exclusivos de v1, cortado en el último
+día de entrenamiento; nunca ve el holdout, el fold de validación ni días posteriores a $T$ en la validación temporal. Se
+corre dentro de `fit_gru` y los pesos se copian a cada semilla antes del ajuste fino.
+
+**Resultados de la comparación** (OOF, antes de regenerar los datos; detalle en el README, sección "Red neuronal"):
+
+| Variante | AUC OOF 30 / 60 / 90 d |
+|---|---|
+| GRU original (60 d, 6 épocas, 1 semilla) | – / – / 0.713 |
+| + parada temprana, 5 semillas | 0.796 / 0.767 / 0.756 |
+| 180 días | 0.795 / 0.779 / 0.775 |
+| + tabulares (60 d / 180 d) | 0.815 / 0.787 / 0.777 · 0.813 / 0.789 / 0.781 |
+| **+ riesgo discreto, 180 d** | **0.827 / 0.793 / 0.778** |
+| ídem 365 d | 0.821 / 0.792 / 0.780 |
+| ídem + pre-entrenamiento | 0.837 / 0.809 / 0.795 |
+
+El pre-entrenamiento mejora fuera del ruido en OOF (bootstrap de a pares por vehículo, IC95 de ΔAUC excluye 0) pero no
+en la validación temporal (ΔAUC de −0.002 a +0.015, IC95 incluye 0 en 5 de 6 casos); por el criterio fijado de antemano
+(mejorar en OOF **y** en temporal) no se adopta.
+
+**Desempeño vigente** (holdout): AUC 0.823 / 0.798 / 0.782, al nivel del LightGBM (0.820 / 0.799 / 0.780).
 
 ### 6.5 Autoencoder (Health Index)
 
@@ -428,18 +475,21 @@ Por horizonte, una regresión logística ($C = 1$) sobre
 $[\text{logit}(p_{gbm}), \text{logit}(p_{gru}), \text{logit}(p_{rsf,H}), \log(\text{ae\_err})]$, entrenada **solo con
 predicciones OOF**. Coeficientes vigentes (gbm, gru, rsf, ae):
 
-| H | GBM | GRU | RSF | AE |
+| H | GBM | Red | RSF | AE |
 |---|---|---|---|---|
-| 30 | 0.567 | 0.052 | 0.358 | 0.200 |
-| 60 | 0.553 | 0.051 | 0.315 | 0.192 |
-| 90 | 0.600 | 0.058 | 0.223 | 0.154 |
+| 30 | 0.465 | 0.410 | 0.160 | 0.166 |
+| 60 | 0.499 | 0.316 | 0.081 | 0.175 |
+| 90 | 0.564 | 0.229 | 0.055 | 0.158 |
+
+Con la red anterior los pesos de la GRU eran ~0.05. Aun así, el stack mejora poco: ΔAUC OOF de a pares +0.003 / +0.002 /
++0.000 (dentro del ruido); la red aprende casi lo mismo que el LightGBM y desplaza sobre todo al RSF.
 
 El stacking produce probabilidades calibradas (Brier 0.064 a 90 d) y es el *score* que se usa en las alertas
 (`stack90`).
 
 ### 6.7 Modelos finales y modelo *what-if*
 
-- Tras el CV se reentrenan LightGBM (3 horizontes) y la GRU con **todo el train**. Se usan para SHAP, atención y el
+- Tras el CV se reentrenan LightGBM (3 horizontes) y la red (5 semillas) con **todo el train**. Se usan para SHAP, atención y el
   dashboard; las métricas se reportan siempre con OOF/holdout.
 - **GBM monótono para el simulador** (`models/gbm90_whatif.txt`). El LightGBM libre no es causal: en esta muestra, el
   perfil "ruta" aparece más entre los fallados por el diseño muestral, y un *what-if* con ese modelo daba recomendaciones
@@ -449,14 +499,15 @@ El stacking produce probabilidades calibradas (Brier 0.064 a 90 d) y es el *scor
     terminan en regeneración, ratio de regeneraciones detenidas, km y días desde la última regeneración;
   - **decrecientes**: km por viaje y velocidad.
 
-  Costo: AUC holdout 0.767 frente a 0.776 del libre. Garantía: ninguna mejora de hábito puede aumentar el riesgo
+  Costo: AUC holdout 0.771 frente a 0.780 del libre. Garantía: ninguna mejora de hábito puede aumentar el riesgo
   simulado.
 
 ### 6.8 Salidas
 
-`data/preds.parquet` (una fila por vehículo-día: fold, etiquetas, `gbm*`, `gru*`, `rsf*`, `rul`, `ae_err`, `stack*`,
-`health`) y `models/` (`gbm{30,60,90}.txt`, `gbm90_whatif.txt`, `gbm_params.json`, `stack*.joblib`, `gru.pt`,
-`gru_scaler.joblib`, `gru_attention.npy`).
+`data/preds.parquet` (una fila por vehículo-día: fold, etiquetas, `gbm*`, `gru*`, `gru*_std`, `gru_rul`, `rsf*`, `rul`,
+`ae_err`, `stack*`, `health`) y `models/` (`gbm{30,60,90}.txt`, `gbm90_whatif.txt`, `gbm_params.json`, `stack*.joblib`,
+`gru.pt` = `{"arch", "nets": [5 state_dicts]}`, `gru_scaler.joblib`, `gru_attention.npy`, `encoder.pt` si `pre=True`).
+`python -m src.models nn <tag> k=v…` entrena solo la red y escribe `data/nn_<tag>.parquet` y `data/nn_results.jsonl`.
 
 ---
 
@@ -508,7 +559,7 @@ Por modelo y horizonte, sobre filas $m_H$ del holdout:
   agregado en grupos de hipótesis física (`GROUPS`: Hollín/DPF, Regeneraciones, Patrón de uso, Térmico, Consumo, Aceite,
   Clima, Vehículo/mercado) mediante `group_of`.
 - **SHAP local** (en el dashboard): *waterfall* de las 12 contribuciones de mayor magnitud para el vehículo-día elegido.
-- **Atención de la GRU**: qué días de los últimos 60 pesaron en la predicción.
+- **Atención de la red**: qué días de los últimos 180 pesaron en la predicción.
 
 ### 7.5 Perfiles de conductor
 
@@ -541,6 +592,12 @@ período y estacionalidad con el entrenamiento y por eso es optimista.
   considera "sano" a todo vehículo **sin evento conocido en $T$**. (Una versión anterior usaba la etiqueta final
   sano/fallado, que filtra información del futuro e inflaba la aparente descalibración del umbral fijo.)
 - Se evalúa el **LightGBM** (componente dominante del ensamble), con IC por vehículo.
+- `python -m src.temporal nn <tag> k=v…` evalúa la **red** en los mismos dos escenarios (AUC con IC): entrena con las
+  máscaras de `known_at`, oculta los eventos posteriores a $T$ y recorta la censura a $T$ (para la cabeza de riesgo); el
+  pre-entrenamiento, si está activo, tampoco ve días $\ge T$. Guarda las predicciones en
+  `data/nn_temporal_<tag>_<escenario>.parquet` para comparar variantes de a pares. Resultado vigente (AUC 30 / 60 / 90 d):
+  vehículos nuevos 0.697 / 0.667 / 0.602, misma flota 0.718 / 0.694 / 0.660; el LightGBM da 0.719 / 0.666 / 0.637 y
+  0.724 / 0.693 / 0.658.
 
 ---
 
@@ -597,7 +654,7 @@ episodios de falsa alarma por vehículo-año, y $C$ los costos de la reparación
 | Optimismo por período compartido | Validación temporal con despliegue simulado |
 | Incertidumbre mal reportada | IC por bootstrap agrupado por vehículo y por evento |
 
-Brecha entre entrenamiento y validación del LightGBM (90 d): AUC 0.99 en train, **0.809 OOF, 0.777 holdout**. OOF y
+Brecha entre entrenamiento y validación del LightGBM (90 d): AUC 0.99 en train, **0.802 OOF, 0.780 holdout**. OOF y
 holdout coinciden, lo que indica generalización a vehículos nuevos; el 0.99 es memorización de vehículos vistos.
 
 ---
@@ -608,31 +665,31 @@ holdout coinciden, lo que indica generalización a vehículos nuevos; el 0.99 es
 
 | H | AUC (IC95) | AP (base) | AUC OOF | AUC dentro de fallados |
 |---|---|---|---|---|
-| 30 | 0.817 (0.76–0.87) | 0.200 (0.022) | 0.843 | 0.734 |
-| 60 | 0.791 (0.74–0.84) | 0.277 (0.048) | 0.817 | 0.692 |
-| 90 | 0.777 (0.73–0.83) | 0.303 (0.079) | 0.809 | 0.668 |
+| 30 | 0.829 (0.78–0.88) | 0.201 (0.022) | 0.846 | 0.745 |
+| 60 | 0.803 (0.76–0.86) | 0.285 (0.048) | 0.819 | 0.705 |
+| 90 | 0.785 (0.74–0.83) | 0.314 (0.079) | 0.809 | 0.675 |
 
 **Alertas** (holdout):
 
 | Política | Detección (IC95) | Anticipación mediana | Falsas alarmas / vehículo-año |
 |---|---|---|---|
 | ECU actual | 55 % (43–68 %) | 100 d | 0.60 |
-| Umbral fijo (10 % de días sanos) | 80 % (70–89 %) | 100 d | 0.61 |
-| Umbral relativo (top 20 %) | 84 % (73–93 %) | 119 d | 0.61 |
+| Umbral fijo (10 % de días sanos) | 86 % (75–95 %) | 106 d | 0.63 |
+| Umbral relativo (top 20 %) | 89 % (80–96 %) | 124 d | 0.61 |
 
 **Validación temporal** ($T$ = 2026-01-01, LightGBM):
 
 | Escenario | AUC 30 d | AUC 90 d | ECU det./FA | Fijo det./FA | Relativo det./FA |
 |---|---|---|---|---|---|
-| Vehículos nuevos (36 eventos) | 0.72 | 0.64 | 53 % / 0.90 | 47 % / 0.54 | 61 % / 0.65 |
-| Misma flota (194 eventos) | 0.73 | 0.66 | 43 % / 0.88 | 51 % / 0.39 | 38 % / 0.28 |
+| Vehículos nuevos (36 eventos) | 0.72 | 0.64 | 53 % / 0.90 | 50 % / 0.51 | 64 % / 0.66 |
+| Misma flota (194 eventos) | 0.72 | 0.66 | 43 % / 0.88 | 49 % / 0.40 | 38 % / 0.28 |
 
 **Interpretación.** La ventaja sostenida es en **cantidad de eventos detectados** a igual o menor tasa de falsas
 alarmas que la ECU. En días de anticipación no hay diferencia significativa. Hacia el futuro el desempeño cae (AUC 90 d
 ~0.65). A igual tasa de falsas alarmas, los umbrales fijo y relativo rinden parecido; el relativo aporta control del
 volumen de alertas.
 
-**Importancia por grupo (SHAP):** patrón de uso ≈ regeneraciones > vehículo/mercado > hollín > térmico > clima >
+**Importancia por grupo (SHAP):** regeneraciones ≈ patrón de uso > hollín ≈ vehículo/mercado > térmico > clima >
 consumo > aceite. Individualmente, `country` es la feature más influyente. Una ablación mostró que, sin variables de
 vehículo/mercado, el AUC cae 0.02–0.05 pero el AUC dentro de fallados casi no cambia: la señal de *cuándo* viene de la
 telemetría.
@@ -647,17 +704,21 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
 .venv/bin/python -m src.data          # ≈20 s
 .venv/bin/python -m src.features      # ≈15 s
 .venv/bin/python -m src.models tune   # ≈10 min (opcional; escribe models/gbm_params.json)
-.venv/bin/python -m src.models        # ≈20 min CPU (5 folds × 4 modelos + finales + what-if)
+.venv/bin/python -m src.models        # ≈15 min con GPU (5 folds × 4 modelos + finales + what-if); más en CPU
 .venv/bin/python -m src.evaluate      # ≈2 min
 .venv/bin/python -m src.temporal      # ≈3 min
 .venv/bin/streamlit run app.py
 ```
 
-- Versiones fijadas en `requirements.txt` (pandas 3, DuckDB 1.5, LightGBM 4.7, scikit-survival 0.28, PyTorch 2.14 CPU,
-  SHAP 0.52, Streamlit 1.64).
-- Memoria: DuckDB acotado a 4 GB; el entrenamiento completo ronda 2–3 GB de RSS. Probado en 12 núcleos y 16 GB, sin GPU.
-- Determinismo: semillas fijas. Puede haber pequeñas variaciones numéricas entre máquinas por la paralelización de
-  LightGBM/PyTorch.
+- Versiones fijadas en `requirements.txt` (pandas 3, DuckDB 1.5, LightGBM 4.7, scikit-survival 0.28, PyTorch 2.14,
+  SHAP 0.52, Streamlit 1.64). PyTorch se instala desde el índice de CPU, CUDA o ROCm según la máquina (ver README).
+- Recursos por máquina en `config.local.json` (no versionado; valores por defecto en `src/config.py`): límites de
+  DuckDB, `device` (`auto`/`cpu`/`cuda`; ROCm se expone como `cuda`), precisión mixta, hilos, parámetros de
+  entrenamiento de la red y variables de entorno (p. ej. `HSA_OVERRIDE_GFX_VERSION=10.3.0` para una Radeon RX 6650 XT).
+- Memoria: DuckDB acotado a 4 GB por defecto; el entrenamiento completo ronda 2–3 GB de RSS. Probado en 12 núcleos y
+  16 GB sin GPU (pat0top) y con una Radeon RX 6650 XT de 8 GB (pcpat0; pico de 85 °C de *junction*).
+- Determinismo: semillas fijas y datos idénticos con cualquier cantidad de hilos de DuckDB. Puede haber pequeñas
+  variaciones numéricas entre máquinas por la paralelización de LightGBM/PyTorch.
 - `data/`, `models/` y `Datasets/` están en `.gitignore`: son artefactos regenerables o datos confidenciales.
 
 ---
@@ -666,9 +727,9 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
 
 - **Deriva temporal**: el AUC a 90 d baja de ~0.78 (holdout por vehículo) a ~0.65 (temporal). Se recomienda reentrenar
   trimestralmente y recalibrar el X % de la política relativa con la capacidad de la red de concesionarios.
-- **GRU**: sin *early stopping* ni búsqueda de hiperparámetros, y sin acceso a variables estáticas ni de largo plazo.
-  Mejoras candidatas: incorporar features de ingeniería y embeddings de las categóricas, ventana de 180 d, y
-  pre-entrenamiento auto-supervisado con datos sin etiqueta (fallados v1).
+- **Red neuronal**: ya iguala al LightGBM, pero aporta poco al ensamble (aprende casi lo mismo). El pre-entrenamiento
+  auto-supervisado mejora OOF pero no la validación temporal. Pendientes opcionales: entrenamiento adversarial contra
+  país/cohorte (*gradient reversal*) y un modelo jerárquico viajes → días.
 - **Tamaño muestral**: 56 eventos en el holdout y 36 en el escenario temporal de vehículos nuevos ⇒ IC anchos.
 - **`country` muy influyente**: puede reflejar en parte el diseño muestral de las listas de fallados y sanos.
 - **Hora local** aproximada con UTC−4 fijo (anotado en el código con `ponytail:`); afecta solo a `sh_night` y al corte
@@ -676,7 +737,6 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
 - **Supuestos del simulador** (40 km a 80 km/h por viaje de ruta; los viajes eliminados se asumen cortos, urbanos y en
   frío) y **del modelo económico** (costos editables en la UI): son ilustrativos.
 - **Datos no disponibles** respecto del anexo de la consigna: GPS, presión de neumáticos, DPF en %.
-- El docstring de la clase `Seq` menciona ventanas de 90 días; el valor efectivo es `SEQ = 60`.
 
 ---
 

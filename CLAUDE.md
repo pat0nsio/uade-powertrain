@@ -3,15 +3,17 @@
 Proyecto para el Ford Innovation Challenge III: predicción temprana de degradación del filtro de partículas (DPF) a
 partir de telemetría. Arquitectura y algoritmos: `docs/DOCUMENTACION_TECNICA.md`. Resultados y cómo correrlo: `README.md`.
 
-**Trabajo pendiente para la próxima sesión (máquina con GPU `pcpat0`): leer `docs/SIGUIENTE_SESION.md` antes de empezar.**
+Estado de la última sesión (GPU en `pcpat0`, hecha) y pendientes: `docs/SIGUIENTE_SESION.md`.
 
 ## Reglas del proyecto
 
 - **Commits sin coautoría**: nunca agregar `Co-Authored-By` ni atribución a Claude. Autor:
   `git -c user.name="pat0nsio" -c user.email="patricioameri@gmail.com" commit ...` si git no tiene identidad configurada.
-- **DuckDB siempre con límite de recursos** (`duckdb.local.json`, no versionado). Sin límite, una consulta sobre los ~10 M
-  de eventos congeló una máquina de 16 GB. Nada de subconsultas `EXISTS` correlacionadas sobre tablas grandes: usar
-  funciones de ventana o `numpy.searchsorted` por vehículo.
+- **DuckDB siempre con límite de recursos** (`config.local.json`, no versionado; ver `src/config.py`). Sin límite, una
+  consulta sobre los ~10 M de eventos congeló una máquina de 16 GB. Nada de subconsultas `EXISTS` correlacionadas sobre
+  tablas grandes: usar funciones de ventana o `numpy.searchsorted` por vehículo.
+- **El código no se acopla a la GPU**: dispositivo, precisión mixta, hilos y parámetros de entrenamiento salen de
+  `config.local.json`; todo tiene que seguir corriendo en CPU.
 - **El holdout (fold = −1) nunca se usa para decidir** (hiperparámetros, umbrales, arquitectura). Toda elección se hace
   con predicciones OOF de los folds de train o, en la validación temporal, con el período de calibración previo a T.
 - **Nada de información del futuro**: las features solo miran hacia atrás (hay un test en `python -m src.features`), y

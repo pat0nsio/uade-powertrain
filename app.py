@@ -205,7 +205,7 @@ elif view == "Vehículo":
         days = pd.date_range(end=pd.Timestamp(day), periods=len(att))
         fig = go.Figure(go.Bar(x=days, y=att, marker_color=AQUA, hovertemplate="%{x|%d-%b}: %{y:.3f}<extra></extra>"))
         st.plotly_chart(style(fig, 380, hovermode="closest", yaxis_title="peso de atención",
-                              title=dict(text="Días de los últimos 60 que más pesaron", font=dict(size=12))),
+                              title=dict(text=f"Días de los últimos {len(att)} que más pesaron", font=dict(size=12))),
                         width="stretch")
 
     st.subheader("Recomendación prescriptiva")

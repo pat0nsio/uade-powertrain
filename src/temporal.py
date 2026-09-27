@@ -6,6 +6,7 @@ Evaluación: filas con día >= T. Dos escenarios:
   * "misma flota":      se entrena y evalúa con todos los vehículos (la flota ya monitoreada, en el futuro)
 El umbral de alerta se fija con un split temporal interno (sanos en [T-90, T)), sin mirar el período evaluado.
 Se evalúa el LightGBM (componente principal del ensamble). Salida: data/temporal.json
+`python -m src.temporal nn <tag> [seq=.. tab=.. head=.. pre=..]` evalúa la red neuronal (AUC) -> data/nn_temporal.jsonl
 """
 import json
 
@@ -80,6 +81,53 @@ def scenario(f, fold, train_veh, test_veh, cols):
     return out
 
 
+def nn_scenario(f, cal, train_veh, test_veh, arch, save=None):
+    """La red entrenada solo con lo conocido en T: máscaras de etiqueta de known_at, eventos >= T ocultos y censura
+    recortada a T (para la cabeza de riesgo). El pre-entrenamiento, si está activo, tampoco ve días >= T."""
+    from src.models import Seq, fit_gru, pred_gru
+    g = f.copy()
+    for h in HORIZONS:
+        g[f"m{h}"] = known_at(f, h, T)
+    g.loc[g["day"] + pd.to_timedelta(g["tte"], "D") >= T, "tte"] = np.nan
+    g["gap_to_end"] = np.minimum(g["gap_to_end"], (T - g["day"]).dt.days - 1)
+    rows = np.where(train_veh & g["usable"] & (g["day"] < T))[0]
+    seq = Seq(cal, g, arch)
+    nets = fit_gru(seq, g, rows)
+    fut = np.where(test_veh & (f["day"] >= T))[0]
+    P = pd.DataFrame(pred_gru(nets, seq, fut)[0][:, :len(HORIZONS)], index=fut, columns=[f"gru{h}" for h in HORIZONS])
+    if save:  # para comparar variantes de a pares (bootstrap por vehículo)
+        P.to_parquet(save)
+    out = {}
+    for h in HORIZONS:
+        te = np.where(test_veh & (f["day"] >= T) & f[f"m{h}"])[0]
+        s = P.loc[te, f"gru{h}"].values
+        y = f[f"y{h}"].values[te]
+        auc_ci, _ = cluster_ci(y, s, f["v"].values[te], n=200)
+        out[f"H{h}"] = {"auc": roc_auc_score(y, s), "auc_ci95": auc_ci, "ap": average_precision_score(y, s),
+                        "base_rate": y.mean(), "n_vehicles": int(f["v"].iloc[te].nunique())}
+    return out
+
+
+def main_nn(tag, **arch):
+    from src.models import ARCH
+    arch = {**ARCH, **arch}
+    f = pd.read_parquet("data/features.parquet")
+    f["day"] = pd.to_datetime(f["day"])
+    cal = pd.read_parquet("data/calendar.parquet")
+    p = pd.read_parquet("data/preds.parquet", columns=["v", "fold"]).drop_duplicates("v").set_index("v")["fold"]
+    fold = f["v"].map(p)
+    every = pd.Series(True, index=f.index)
+    R = {"tag": tag, **arch, "T": str(T.date())}
+    for k, (tr, te) in {"vehiculos_nuevos": (fold >= 0, fold == -1), "misma_flota": (every, every)}.items():
+        R[k] = nn_scenario(f, cal, tr, te, arch, save=f"data/nn_temporal_{tag}_{k}.parquet")
+        for h in HORIZONS:
+            r = R[k][f"H{h}"]
+            print(f"  {k} H{h}: AUC {r['auc']:.3f} {np.round(r['auc_ci95'], 3)} AP {r['ap']:.3f} (base {r['base_rate']:.3f})",
+                  flush=True)
+    with open("data/nn_temporal.jsonl", "a") as fh:
+        fh.write(json.dumps(R, default=float) + "\n")
+
+
 def main():
     f = pd.read_parquet("data/features.parquet")
     f["day"] = pd.to_datetime(f["day"])
@@ -106,4 +154,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if "nn" in sys.argv:
+        kv = dict(a.split("=") for a in sys.argv[3:])
+        main_nn(sys.argv[2], **{k: (v if k == "head" else int(v)) for k, v in kv.items()})
+    else:
+        main()

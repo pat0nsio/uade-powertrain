@@ -16,6 +16,8 @@ from pathlib import Path
 
 import duckdb
 
+from src.config import CFG
+
 RAW = Path("Datasets")
 OUT = Path("data")
 SF1 = RAW / "Static/StaticInformation_FailedVins.csv"
@@ -25,13 +27,12 @@ TRIPS = {"failed": RAW / "TripSummary/TripSummary_Failed_SelectionVins_vehicleco
          "healthy": RAW / "TripSummary/TripSummary_NotFailed_SelectionVins.csv"}
 DYN = {"failed": RAW / "Dynamic/DynamicInformation_Failed_SelectionVins_v2.csv",
        "healthy": RAW / "Dynamic/DynamicInformation_NotFailed_SelectionVins.csv"}
+# Fallados que solo están en v1 (sin fecha de falla confiable): se usan únicamente en el pre-entrenamiento auto-supervisado
+TRIPS_V1 = {"failed_v1": RAW / "TripSummary/TripSummary_Failed_SelectionVins.csv"}
+DYN_V1 = {"failed_v1": RAW / "Dynamic/DynamicInformation_Failed_SelectionVins.csv"}
 # ponytail: offset fijo UTC-4 para "hora local" (flota LatAm UTC-3..-5); usar tz por país si la hora importa más
 LOCAL = "INTERVAL 4 HOUR"
 
-# Recursos de DuckDB: se pueden sobreescribir en duckdb.local.json (no versionado). Sin límite, DuckDB toma ~80% de la
-# RAM y puede congelar máquinas de 16 GB.
-DUCKDB_DEFAULTS = {"memory_limit": "4GB", "threads": 4}
-DUCKDB_LOCAL = Path("duckdb.local.json")
 
 # Estados del DPF (renombrado "Air Filter" en el dataset anonimizado)
 OVER = "('Air Filter Over Limit','Air Filter Overloaded','Air Filter At Limit')"
@@ -46,9 +47,12 @@ def num(col, lo, hi):
     return f"case when try_cast({col} as double) between {lo} and {hi} then try_cast({col} as double) end"
 
 
-def build():
+def build(v1_only=False):
+    """v1_only: agrega solo los fallados exclusivos de v1 -> data/daily_v1.parquet (pre-entrenamiento, sin etiquetas).
+    No escribe static/daily/quality."""
+    trips, dyn = (TRIPS_V1, DYN_V1) if v1_only else (TRIPS, DYN)
     OUT.mkdir(exist_ok=True)
-    cfg = {**DUCKDB_DEFAULTS, **(json.loads(DUCKDB_LOCAL.read_text()) if DUCKDB_LOCAL.exists() else {})}
+    cfg = CFG["duckdb"]  # límites de recursos: src/config.py / config.local.json
     c = duckdb.connect(config=cfg)
     print("DuckDB:", cfg)
     q = {}
@@ -66,7 +70,7 @@ def build():
     q["failed_vehicles_with_multiple_events"] = c.execute("select count(*) from (select v from sf group by 1 having count(*)>1)").fetchone()[0]
 
     # ---------- trips ----------
-    for g, p in TRIPS.items():
+    for g, p in trips.items():
         c.execute(f"""create table t_{g} as select VehicleCode v,
             try_cast(TripDatetimeStart as timestamptz) ts0, try_cast(TripDatetimeEnd as timestamptz) ts1,
             try_cast(OdometerTripStart as double) o0, try_cast(OdometerTripEnd as double) o1,
@@ -79,7 +83,7 @@ def build():
             {num('CoolantTemperatureStart', -40, 130)} cool0, {num('CoolantTemperatureEnd', -40, 130)} cool1,
             {num('AirTemperatureAvg', -40, 55)} air, {num('AirTemperatureMin', -40, 55)} airmin
             from {csv(p)}""")
-    c.execute("create table t_raw as select * from t_failed union all select * from t_healthy")
+    c.execute("create table t_raw as " + " union all ".join(f"select * from t_{g}" for g in trips))
     q["trips_raw"] = c.execute("select count(*) from t_raw").fetchone()[0]
     rules = {
         "trips_bad_timestamp": "ts0 is null or ts1 is null or ts1 < ts0",
@@ -90,9 +94,13 @@ def build():
     }
     for k, cond in rules.items():
         q[k] = c.execute(f"select count(*) from t_raw where {cond}").fetchone()[0]
-    c.execute(f"""create table t as select distinct on (v, ts0) *,
+    # duplicados (v, ts0): se conserva uno con desempate determinista (si no, el resultado depende de los hilos)
+    c.execute(f"""create table t as select *,
         o1-o0 km, epoch(ts1-ts0)/60 mins, ((ts0 at time zone 'UTC') - {LOCAL}) lts
-        from t_raw where not ({' or '.join('(' + r + ')' for r in rules.values())}) order by v, ts0""")
+        from t_raw where not ({' or '.join('(' + r + ')' for r in rules.values())})
+        qualify row_number() over (partition by v, ts0 order by ts1, o0, o1, f0, f1, oil0, oil1, etmin, etmax, etavg,
+            soot0, soot1, cool0, cool1, air, airmin, dpf_state0, dpf_state1) = 1
+        order by v, ts0""")
     valid = c.execute(f"select count(*) from t_raw where not ({' or '.join('(' + r + ')' for r in rules.values())})").fetchone()[0]
     q["trips_dropped_invalid_total"] = q["trips_raw"] - valid
     q["trips_duplicates_dropped"] = valid - c.execute("select count(*) from t").fetchone()[0]
@@ -102,12 +110,14 @@ def build():
 
     # ---------- production date (D0 estimado por cohorte) ----------
     for s in ["sf", "sn"]:
+        c.execute(f"alter table {s} add column prod date")
         d0 = c.execute(f"""select median(epoch(ft)/86400 - pd) from (select v, min(ts0) ft from t group by 1) join {s} using(v)""").fetchone()[0]
+        if d0 is None:  # modo v1_only: no hay viajes de esta cohorte
+            continue
         disp = c.execute(f"""select quantile_cont(epoch(ft)/86400 - pd - {d0}, 0.95) - quantile_cont(epoch(ft)/86400 - pd - {d0}, 0.05)
             from (select v, min(ts0) ft from t group by 1) join {s} using(v)""").fetchone()[0]
         q[f"d0_{s}"] = round(d0, 2)
         q[f"d0_{s}_p5_p95_spread_days"] = round(disp, 2)
-        c.execute(f"alter table {s} add column prod date")
         c.execute(f"update {s} set prod = (to_timestamp(({d0}::double + pd)*86400))::date")
     c.execute("""create table static as
         select v, 1 failed, list(distinct (prod + idp*interval 1 day)::date order by (prod + idp*interval 1 day)::date) events,
@@ -117,27 +127,28 @@ def build():
         select v, 0, []::date[], prod, ds, Engine, ModelSeries, country, city from sn""")
 
     # ---------- dynamic (señales ECU del DPF) ----------
-    for g, p in DYN.items():
+    for g, p in dyn.items():
         c.execute(f"""create table d_{g} as select distinct VehicleCode v, try_cast(eventTimestamp as timestamptz) ts,
             {num('Acumulation', 0, 100)} acc, try_cast(OdometerValue as double) odo, Message msg, Regenerations is not null reg,
             case when try_cast(DistanceBetweenRegenerations as double) between 0 and 20000
                  then try_cast(DistanceBetweenRegenerations as double) end dbr
             from {csv(p)}""")
-    c.execute("create table d as select * from d_failed union all select * from d_healthy")
+    c.execute("create table d as " + " union all ".join(f"select * from d_{g}" for g in dyn))
     q["dynamic_rows"] = c.execute("select count(*) from d").fetchone()[0]
-    q["dynamic_negative_dbr_dropped"] = c.execute(f"""select count(*) from (select * from {csv(DYN['failed'])} union all
-        select * from {csv(DYN['healthy'])}) where try_cast(DistanceBetweenRegenerations as double) < 0""").fetchone()[0]
+    q["dynamic_negative_dbr_dropped"] = c.execute("select count(*) from (" + " union all ".join(
+        f"select * from {csv(p)}" for p in dyn.values()) + ") where try_cast(DistanceBetweenRegenerations as double) < 0").fetchone()[0]
 
     # ---------- regeneraciones reconstruidas desde la señal de hollín ----------
     # La bandera `Regenerations` deja de llegar para toda la flota (y ya venía degradándose), pero `Acumulation`
     # sigue: una regeneración es una caída de hollín >= 20 puntos entre lecturas consecutivas (episodios a > 6 h).
     # Validado contra la bandera antes del corte: recall 0.91, precisión 0.81, corr vehículo-mes 0.88.
+    # los desempates (lecturas con el mismo ts) hacen que el resultado no dependa de la cantidad de hilos
     c.execute("""create table dl as select v, ts, odo, lag(acc) over w - acc soot_drop from d
-        window w as (partition by v order by ts)""")
+        window w as (partition by v order by ts, acc, odo, msg, reg, dbr)""")
     c.execute("""create table rg as select v, ts, case when odo - lag(odo) over w between 0 and 20000
             then odo - lag(odo) over w end dbr
-        from (select *, lag(ts) over (partition by v order by ts) pts from dl where soot_drop >= 20)
-        where pts is null or epoch(ts - pts) > 6*3600 window w as (partition by v order by ts)""")
+        from (select *, lag(ts) over (partition by v order by ts, odo, soot_drop) pts from dl where soot_drop >= 20)
+        where pts is null or epoch(ts - pts) > 6*3600 window w as (partition by v order by ts, odo, soot_drop)""")
     c.execute("create table rp as select v, ts from dl where soot_drop >= 10 and soot_drop < 20")
     q["regen_reconstructed_episodes"] = c.execute("select count(*) from rg").fetchone()[0]
     flag_end = c.execute("""select max(day) + 1 from (select ts::date as "day", count(*) n from d where reg group by 1)
@@ -178,15 +189,23 @@ def build():
     c.execute("""create table daily as select coalesce(td.v, dd.v) v, coalesce(td.day, dd.day) as "day", td.* exclude (v, day), dd.* exclude (v, day)
         from td full join dd on td.v = dd.v and td.day = dd.day""")
     q["vehicle_days"] = c.execute("select count(*) from daily").fetchone()[0]
+    if v1_only:
+        c.execute(f"""copy (select * from daily where v in (select VehicleCode from {csv(SF1)})
+            and v not in (select v from static) order by v, day) to '{OUT}/daily_v1.parquet'""")
+        return c.execute(f"select count(distinct v) vehicles, count(*) vehicle_days from '{OUT}/daily_v1.parquet'").df()
     q["vehicles"] = c.execute("select failed, count(*) from static group by 1").df().set_index("failed")["count_star()"].to_dict()
 
-    c.execute(f"copy static to '{OUT}/static.parquet'")
+    c.execute(f"copy (select * from static order by v) to '{OUT}/static.parquet'")
     c.execute(f"copy (select * from daily where v in (select v from static) order by v, day) to '{OUT}/daily.parquet'")
     (OUT / "quality.json").write_text(json.dumps(q, indent=2, default=str))
     return q
 
 
 if __name__ == "__main__":
+    import sys
+    if "v1" in sys.argv:
+        print(build(v1_only=True))
+        sys.exit()
     q = build()
     print(json.dumps(q, indent=2, default=str))
     assert q["d0_sf_p5_p95_spread_days"] < 2 and q["d0_sn_p5_p95_spread_days"] < 2, "anclaje de producción inconsistente"
