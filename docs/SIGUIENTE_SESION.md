@@ -14,6 +14,23 @@ El plan anterior (mejoras de la red neuronal con GPU) está completo. Resultados
 | 2.4 Cierre | Pipeline completo re-corrido, dashboard probado con `AppTest` (4 vistas OK), documentación actualizada. |
 | Extra | `src/data.py` ahora es determinista (antes ~0.1 % de los días variaba según la cantidad de hilos de DuckDB). |
 
+## Próxima sesión: ¿el límite son los datos?
+
+Todos los modelos convergen a ~0.78–0.80 AUC 90 d (OOF/holdout) y a ~0.65 en la validación temporal; combinarlos no
+suma. Hipótesis: el techo lo ponen los datos (pocos eventos, etiquetas = fecha de identificación en taller, sin presión
+diferencial del DPF), no el modelo. Dos pruebas para medirlo en vez de inferirlo (~20 min cada una con GPU):
+
+1. **Curva de aprendizaje**: entrenar LightGBM y la red con 25 / 50 / 75 / 100 % de los vehículos de train (mismos
+   folds, submuestreo por vehículo estratificado por fallado; varias repeticiones por fracción) y graficar AUC/AP OOF
+   con IC. Si sigue subiendo en 100 %, más vehículos ayudarían; si ya se aplanó, el límite es calidad de etiquetas o
+   señales.
+2. **Descomponer la caída temporal** (0.78 → 0.65): entrenar el modelo del holdout por vehículo con la misma cantidad
+   de datos (filas/vehículos/eventos) que había antes de T = 2026-01-01. Si cae igual, es falta de datos; si no, es
+   deriva (estacionalidad, envejecimiento de la flota, corte de la bandera de regeneración) y la respuesta es
+   reentrenar seguido.
+
+Mismas reglas: decidir solo con OOF o con el período previo a T, reportar IC por vehículo.
+
 ## Pendiente
 
 - Traer a pat0top `models/` y `data/` si se va a presentar desde ahí (`scp -r pcpat0:~/Projects/uade-powertrain/{data,models} ...`).
