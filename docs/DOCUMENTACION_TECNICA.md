@@ -727,8 +727,14 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
 
 ## 13. Limitaciones conocidas y deuda técnica
 
-- **Deriva temporal**: el AUC a 90 d baja de ~0.78 (holdout por vehículo) a ~0.65 (temporal). Se recomienda reentrenar
-  trimestralmente y recalibrar el X % de la política relativa con la capacidad de la red de concesionarios.
+- **Deriva temporal**: el AUC a 90 d baja de ~0.78 (holdout por vehículo) a ~0.65 (temporal). `src/diagnose.py
+  temporal` muestra que no es falta de datos ni un período más difícil: un LightGBM con el 28 % de las filas rinde igual,
+  y el período posterior a $T$ se predice bien (0.767) si el modelo lo vio; sin verlo cae −0.116 (IC95 −0.19, −0.04).
+  Se recomienda reentrenar seguido (frecuencia por medir) y recalibrar el X % de la política relativa con la capacidad
+  de la red de concesionarios.
+- **Tamaño muestral en vehículos**: la curva de aprendizaje (`src/diagnose.py learning`) sube ~+0.03 de AUC por cada
+  duplicación de vehículos (LightGBM 0.742 → 0.771 → 0.788 → 0.800 con 25/50/75/100 %) y no se aplana; más días por
+  vehículo no aportan.
 - **Red neuronal**: ya iguala al LightGBM, pero aporta poco al ensamble (aprende casi lo mismo). El pre-entrenamiento
   auto-supervisado mejora OOF pero no la validación temporal. Pendientes opcionales: entrenamiento adversarial contra
   país/cohorte (*gradient reversal*) y un modelo jerárquico viajes → días.

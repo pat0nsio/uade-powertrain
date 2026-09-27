@@ -14,22 +14,22 @@ El plan anterior (mejoras de la red neuronal con GPU) está completo. Resultados
 | 2.4 Cierre | Pipeline completo re-corrido, dashboard probado con `AppTest` (4 vistas OK), documentación actualizada. |
 | Extra | `src/data.py` ahora es determinista (antes ~0.1 % de los días variaba según la cantidad de hilos de DuckDB). |
 
-## Próxima sesión: ¿el límite son los datos?
+## ¿El límite son los datos? (hecho, `python -m src.diagnose temporal|learning`)
 
-Todos los modelos convergen a ~0.78–0.80 AUC 90 d (OOF/holdout) y a ~0.65 en la validación temporal; combinarlos no
-suma. Hipótesis: el techo lo ponen los datos (pocos eventos, etiquetas = fecha de identificación en taller, sin presión
-diferencial del DPF), no el modelo. Dos pruebas para medirlo en vez de inferirlo (~20 min cada una con GPU):
+- **Caída temporal = deriva.** Con el 28 % de las filas el LightGBM rinde igual; el período posterior a T se predice
+  bien (0.767) si el modelo lo vio, y cae a 0.653 si no (ΔAUC −0.116 [−0.19, −0.04]). No se sabe todavía si la deriva
+  es física (estación, envejecimiento) o del proceso de etiquetado.
+- **Curva de aprendizaje**: ~+0.03 AUC por duplicación de vehículos, sin aplanarse (LightGBM 0.742 / 0.771 / 0.788 /
+  0.800 con 25 / 50 / 75 / 100 %). Días por vehículo no aportan.
+- Detalle: README, sección "¿Qué limita el desempeño?"; salidas en `data/temporal_decomp.json` y
+  `data/learning_curve.json`.
 
-1. **Curva de aprendizaje**: entrenar LightGBM y la red con 25 / 50 / 75 / 100 % de los vehículos de train (mismos
-   folds, submuestreo por vehículo estratificado por fallado; varias repeticiones por fracción) y graficar AUC/AP OOF
-   con IC. Si sigue subiendo en 100 %, más vehículos ayudarían; si ya se aplanó, el límite es calidad de etiquetas o
-   señales.
-2. **Descomponer la caída temporal** (0.78 → 0.65): entrenar el modelo del holdout por vehículo con la misma cantidad
-   de datos (filas/vehículos/eventos) que había antes de T = 2026-01-01. Si cae igual, es falta de datos; si no, es
-   deriva (estacionalidad, envejecimiento de la flota, corte de la bandera de regeneración) y la respuesta es
-   reentrenar seguido.
+## Próximos pasos sugeridos
 
-Mismas reglas: decidir solo con OOF o con el período previo a T, reportar IC por vehículo.
+1. **Frecuencia de reentrenamiento**: simular despliegue con reentrenos mensuales / trimestrales después de T y medir
+   cuánto se recupera del 0.653.
+2. **Origen de la deriva**: validación adversarial (clasificar días antes vs después de T) para ver qué features
+   cambian, y revisar si la tasa y el calendario de identificación de eventos cambian en el tiempo.
 
 ## Pendiente
 

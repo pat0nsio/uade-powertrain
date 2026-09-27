@@ -193,10 +193,40 @@ línea base (se corrieron antes de regenerar los datos, por eso difieren en la t
   mejora poco: ΔAUC de a pares +0.003 / +0.002 / +0.000 en OOF (dentro del ruido) y +0.012 / +0.012 / +0.008 en holdout.
   La red aprendió casi lo mismo que el LightGBM.
 
+## ¿Qué limita el desempeño? (`python -m src.diagnose temporal|learning`)
+
+**1. La caída temporal es deriva, no falta de datos.** LightGBM, AUC a 90 d en los vehículos del holdout:
+
+| Entrenado con… | Evalúa antes de T | Evalúa desde T |
+|---|---|---|
+| todo el período | 0.788 | 0.767 |
+| solo lo conocido en T (despliegue real) | 0.770 | **0.653** |
+| todo, submuestreado al tamaño y positivos de "antes de T" (28 % de las filas) | 0.794 | 0.771 |
+
+Con el 28 % de las filas el modelo rinde igual (ΔAUC +0.004 [−0.013, +0.021]), y el período posterior a T no es más
+difícil para un modelo que lo vio (0.767). Lo que cae es el modelo que no vio ese período: −0.116 [−0.190, −0.043] (a
+30 y 60 d, −0.080 y −0.126). La relación entre telemetría y eventos cambia con el tiempo; puede ser física (estación,
+envejecimiento de la flota) o del proceso de etiquetado (cuándo los talleres identifican eventos); este test no las
+separa. Consecuencia práctica: **reentrenar seguido pesa más que cualquier mejora de modelo**.
+
+**2. Más vehículos sí ayudarían; más días por vehículo no.** Curva de aprendizaje (AUC OOF 90 d; 5 repeticiones para el
+LightGBM, 2 para la red):
+
+| Vehículos por fold (fallados) | LightGBM | Red |
+|---|---|---|
+| 158 (44) | 0.742 ± 0.010 | 0.714 |
+| 317 (89) | 0.771 ± 0.007 | 0.742 |
+| 477 (134) | 0.788 ± 0.003 | 0.771 |
+| 635 (178) | 0.800 | 0.781 |
+
+Cada duplicación de vehículos suma ~+0.03 de AUC y la curva todavía no se aplana (algo menos en el último tramo). La red
+necesita más datos que el LightGBM para alcanzarlo. Recortar días manteniendo los vehículos (test 1) no cuesta nada: la
+información está en la cantidad de vehículos y eventos independientes.
+
 ## Limitaciones y próximos pasos
 
-- El desempeño cae hacia el futuro (ver validación temporal): conviene reentrenar periódicamente (por ejemplo, cada
-  trimestre) y recalibrar el X % de la política relativa con la capacidad de atención de la red de concesionarios.
+- El desempeño cae hacia el futuro por deriva (ver "¿Qué limita el desempeño?"): conviene reentrenar seguido (falta
+  medir con qué frecuencia) y recalibrar el X % de la política relativa con la capacidad de atención de la red de concesionarios.
 - 56 eventos en el holdout y 36 en el temporal: los IC son anchos.
 - No hay GPS, presión de neumáticos ni DPF en % en los datos entregados (difieren del anexo de la consigna).
 - Los perfiles de conductor (clustering) muestran tasas de falla afectadas por el diseño muestral de las listas de
