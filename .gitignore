@@ -2,5 +2,6 @@
 data/
 Datasets/
 __pycache__/
-models/
+models/*
+!models/gbm_params.json
 config.local.json

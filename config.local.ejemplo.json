@@ -1,0 +1,7 @@
+{
+  "duckdb": {"memory_limit": "4GB", "threads": 4},
+  "torch":  {"device": "auto", "amp": true, "threads": null},
+  "gru":    {"seeds": 5, "max_epochs": 40, "patience": 3, "val_frac": 0.15, "batch": 512, "pred_batch": 4096,
+             "pre_epochs": 5},
+  "env":    {}
+}

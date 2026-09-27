@@ -719,7 +719,9 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
   16 GB sin GPU (pat0top) y con una Radeon RX 6650 XT de 8 GB (pcpat0; pico de 85 °C de *junction*).
 - Determinismo: semillas fijas y datos idénticos con cualquier cantidad de hilos de DuckDB. Puede haber pequeñas
   variaciones numéricas entre máquinas por la paralelización de LightGBM/PyTorch.
-- `data/`, `models/` y `Datasets/` están en `.gitignore`: son artefactos regenerables o datos confidenciales.
+- `data/`, `models/` y `Datasets/` están en `.gitignore`: son artefactos regenerables o datos confidenciales. La
+  excepción es `models/gbm_params.json` (hiperparámetros elegidos del LightGBM), versionado para reproducir los números
+  sin re-correr `tune`. `config.local.ejemplo.json` es la plantilla de `config.local.json`.
 
 ---
 

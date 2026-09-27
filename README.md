@@ -16,7 +16,8 @@ uv pip install --python .venv -r requirements.txt   # torch CPU: --index-url htt
 # datasets en ./Datasets (estructura original del .zip)
 .venv/bin/python -m src.data            # carga + limpieza + regeneraciones reconstruidas (≈20 s) -> data/quality.json
 .venv/bin/python -m src.features        # 170 features + etiquetas + test anti-leakage (≈15 s)
-.venv/bin/python -m src.models tune     # (opcional) búsqueda de hiperparámetros del GBM, solo folds de train (≈10 min)
+.venv/bin/python -m src.models tune     # (opcional) rehace la búsqueda de hiperparámetros del GBM (≈10 min); el
+                                        # resultado vigente está versionado en models/gbm_params.json
 .venv/bin/python -m src.models          # ensamble 5 folds + holdout + modelo what-if (≈15 min con GPU)
 .venv/bin/python -m src.evaluate        # métricas con IC, lead time vs ECU, SHAP, perfiles
 .venv/bin/python -m src.temporal        # validación temporal (despliegue simulado el 2026-01-01)
@@ -29,7 +30,7 @@ uv pip install --python .venv -r requirements.txt   # torch CPU: --index-url htt
 ```
 
 Los recursos por máquina se configuran en `config.local.json` (no versionado; valores por defecto y documentación en
-`src/config.py`). Cada sección es opcional. DuckDB está limitado por defecto a 4 GB y 4 hilos: sin límite, las consultas
+`src/config.py`). Para empezar: `cp config.local.ejemplo.json config.local.json` y ajustar. Cada sección es opcional. DuckDB está limitado por defecto a 4 GB y 4 hilos: sin límite, las consultas
 sobre los ~10 M de eventos pueden congelar una máquina de 16 GB (la sección `duckdb` acepta cualquier opción de DuckDB).
 La red neuronal usa GPU si hay (`"device": "auto"`); se puede forzar `"cpu"` o `"cuda"` (NVIDIA o AMD con ROCm).
 
