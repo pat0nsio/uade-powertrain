@@ -5,3 +5,4 @@ __pycache__/
 models/*
 !models/gbm_params.json
 config.local.json
+edge/dpf_edge_model.h

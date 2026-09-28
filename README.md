@@ -22,6 +22,8 @@ uv pip install --python .venv -r requirements.txt   # torch CPU: --index-url htt
 .venv/bin/python -m src.evaluate        # métricas con IC, lead time vs ECU, SHAP, perfiles
 .venv/bin/python -m src.temporal        # validación temporal (despliegue simulado el 2026-01-01)
 .venv/bin/python -m src.copilot         # chequeos + resumen de receta mínima y ventana de regeneración
+.venv/bin/python -m src.edge            # alerta a bordo: reglas y modelos compactos vs ECU -> data/edge.json
+.venv/bin/python -m src.edge export     # genera edge/dpf_edge_model.h, compila el C y verifica paridad
 .venv/bin/streamlit run app.py          # dashboard
 
 # experimentos con la red neuronal (solo la red; AUC OOF con IC y peso en el stacking -> data/nn_results.jsonl)
@@ -60,6 +62,7 @@ desde `https://download.pytorch.org/whl/rocm7.2`.
 | Evaluación | `src/evaluate.py` | Holdout por vehículo, IC bootstrap por vehículo, umbral fijo y relativo a la flota (elegidos fuera de fold), lead time vs ECU, calibración, SHAP, perfiles. |
 | Validación temporal | `src/temporal.py` | Entrena con lo conocido antes de T y evalúa después de T (vehículos nuevos y misma flota); compara umbral fijo vs relativo. |
 | Copiloto | `src/copilot.py` | Receta mínima (el cambio de hábito más fácil que saca al vehículo de alerta) y ventana de regeneración (cuándo suele hacer un trayecto apto). |
+| A bordo | `src/edge.py`, `edge/` | Alerta con memoria fija (EMA) y modelo compacto; exportada a C99 sin memoria dinámica. |
 | Dashboard | `app.py` | Flota · Vehículo (SHAP, supervivencia, atención, what-if, recomendaciones) · Modelo y negocio · Calidad de datos. |
 
 ## Hallazgos de datos (calidad y trazabilidad)
@@ -141,6 +144,29 @@ En el primer día de alerta de los 118 vehículos del holdout que entran en aler
 
 Son simulaciones con el modelo, no efectos causales medidos: validar que las recomendaciones evitan eventos requiere
 un piloto con intervención.
+
+## Alerta a bordo (ECU / módulo telemático)
+
+A bordo no hay 90 días de historia ni riesgo de la flota: las señales son medias móviles exponenciales (vida media 7 y
+30 días; 17 series diarias, proporciones como numerador/denominador) más contadores desde la última regeneración, y el
+umbral es fijo. Punto de operación elegido en OOF exigiendo **ni más episodios de falsa alarma ni más días sanos en
+alerta** que la ECU (los episodios solos se "ganan" con una alerta casi siempre encendida: avisar con el mensaje
+"Full" en vez de "Over Limit" detecta 93 % pero queda encendida en el 58 % de los días sanos).
+
+| | Holdout | Futuro, vehículos nuevos | Futuro, misma flota |
+|---|---|---|---|
+| ECU actual (detección · FA/veh-año · días sanos en alerta) | 55 % · 0.60 · 5.3 % | 53 % · 0.90 · 5.9 % | 43 % · 0.88 · 7.5 % |
+| Modelo compacto, 100 árboles × 7 hojas | **77 %** · 0.53 · 3.5 % | 58 % · 0.74 · 4.3 % | **65 %** · 0.73 · 3.0 % |
+| Δ detección vs ECU (IC95) | +21 pts [+5, +36] | +6 [−8, +22] | +23 pts [+13, +31] |
+
+- Tamaño elegido con AUC OOF (0.732, el más chico entre los mejores). Árboles de profundidad 2–4 (la regla legible):
+  AUC 0.66–0.69 e inestables hacia el futuro; no superan a la ECU.
+- Pasar de ventanas de 90 días a EMA cuesta ~0.05 de AUC (0.78 → 0.73); anticipa menos que el sistema completo.
+- **Código C** (`edge/`): C99, sin memoria dinámica ni recursión. Estado: 290 B por vehículo; tablas del modelo:
+  ~17 KB en double (la mitad en float32). `dpf_update()` se llama una vez por día. El modelo exportado (un solo modelo,
+  umbral con puntajes OOF) da en holdout 80 % de detección con 0.60 FA/veh-año y 4.0 % de días sanos en alerta.
+  Paridad con Python: 19 534 días de 40 vehículos, |Δ puntaje| ≤ 9e-16, alertas idénticas.
+  `edge/dpf_edge_model.h` se genera con `python -m src.edge export` y no se versiona (modelo entrenado con datos Ford).
 
 ## Validación temporal (despliegue simulado el 2026-01-01)
 
