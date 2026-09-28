@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 import shap
 import streamlit as st
 
+from src.copilot import MIN_MINS, WEEKS, completion, min_recipe, recipe_text, regen_windows, simulate, window_text, whatif_target
 from src.evaluate import group_of
 from src.features import feature_cols
 
@@ -61,6 +62,29 @@ def whatif_model():
 
 
 @st.cache_data
+def whatif_targets():
+    """Objetivo de la receta por fila de features: umbral de flota (últimos 30 días) en la escala del GBM what-if."""
+    f = load_features()
+    return whatif_target(f, whatif_model().predict(f[feature_cols(f)]), REL)
+
+
+@st.cache_data
+def trips():
+    t = pd.read_parquet("data/trips.parquet", columns=["v", "lts", "mins", "dpf_state0", "dpf_state1"])
+    return t
+
+
+def vehicle_trips(v):
+    t = trips()
+    return t[t["v"] == v]
+
+
+@st.cache_data
+def regen_completion():
+    return completion(trips())
+
+
+@st.cache_data
 def attention():
     return np.load("models/gru_attention.npy")
 
@@ -86,7 +110,7 @@ if subset.startswith("Holdout"):
     latest = latest[latest["fold"] == -1]
 
 ADVICE = {
-    "Patrón de uso": "Predominan viajes cortos/urbanos: sugerir al cliente un trayecto de ruta ≥ 20 min a > 60 km/h esta semana.",
+    "Patrón de uso": "Predominan viajes cortos/urbanos: sugerir al cliente un trayecto de 20 min o más esta semana (con esa duración termina más del 90 % de las regeneraciones en curso).",
     "Regeneraciones": "Regeneraciones interrumpidas o poco frecuentes: evitar apagar el motor durante la limpieza automática; agendar regeneración asistida.",
     "Hollín / DPF": "Carga de hollín en aumento sostenido: programar regeneración forzada en concesionario antes de que el DPF llegue al límite.",
     "Térmico / arranques en frío": "Muchos arranques en frío sin alcanzar temperatura de operación: combinar trayectos cortos en uno más largo.",
@@ -216,6 +240,35 @@ elif view == "Vehículo":
     if drivers.empty:
         st.markdown("- Uso saludable: sin acciones necesarias.")
 
+    st.subheader("Receta mínima: el cambio más fácil que saca al vehículo de alerta")
+    wm = whatif_model()
+    rec = min_recipe(wm, X, whatif_targets()[int(fx.index[0])])
+    st.markdown(recipe_text(rec))
+    st.caption("Busca entre todas las combinaciones del simulador (trayectos de ruta, menos viajes cortos, no cortar la "
+               "limpieza) la de menor esfuerzo que lleva el riesgo por debajo del umbral de la flota "
+               f"(top {REL:.0%} de los últimos 30 días), con el GBM de restricciones físicas.")
+
+    st.subheader("Ventana de regeneración: cuándo le conviene hacerlo")
+    P, N = regen_windows(vehicle_trips(v), day)
+    st.markdown(window_text(P, N))
+    l2, r2 = st.columns([3, 2])
+    with l2:
+        fig = go.Figure(go.Heatmap(z=P.values, x=P.columns, y=P.index, zmin=0, zmax=1,
+                                   colorscale=[[0, "#f4f3ee"], [1, AQUA]], colorbar=dict(tickformat=".0%"),
+                                   hovertemplate="%{y} %{x}: trayecto apto en %{z:.0%} de las semanas<extra></extra>"))
+        st.plotly_chart(style(fig, 300, hovermode="closest", yaxis_autorange="reversed",
+                              title=dict(text=f"Semanas con un trayecto de {MIN_MINS}+ min (últimas {WEEKS})",
+                                         font=dict(size=12))), width="stretch")
+    with r2:
+        cp = regen_completion()
+        fig = go.Figure(go.Bar(x=[f"{int(i.left)}–{int(i.right)}" if i.right < 1e3 else f"{int(i.left)}+"
+                                  for i in cp.index], y=cp["mean"], marker_color=BLUE, customdata=cp["size"],
+                               hovertemplate="%{x} min: %{y:.0%} (n=%{customdata})<extra></extra>"))
+        st.plotly_chart(style(fig, 300, hovermode="closest", yaxis_tickformat=".0%", yaxis_range=[0, 1],
+                              xaxis_title="duración del viaje (min)",
+                              title=dict(text="Regeneraciones en curso que terminan dentro del viaje (toda la flota)",
+                                         font=dict(size=12))), width="stretch")
+
     st.subheader("Simulador what-if: ¿qué pasa si cambia el hábito de manejo?")
     st.caption("Usa un GBM con restricciones monótonas físicas (más viajes cortos / regeneraciones interrumpidas nunca "
                "bajan el riesgo; viajes más largos y rápidos nunca lo suben), para que la simulación sea coherente.")
@@ -223,27 +276,7 @@ elif view == "Vehículo":
     long_trips = w[0].slider("Viajes de ruta (≥ 40 km) extra por semana", 0, 5, 1)
     short_cut = w[1].slider("Reducir viajes cortos (< 5 km) en", 0, 100, 0, format="%d%%")
     warm = w[2].checkbox("Evitar apagar el motor durante la regeneración", value=False)
-    Xs = X.copy()
-    # Solo se modifican features con restricción monótona (el resultado es coherente por construcción):
-    # los viajes cortos eliminados se asumen cortos/urbanos/en frío; los de ruta suman 40 km a 80 km/h.
-    for wd in (7, 30, 90):
-        n = Xs[f"w{wd}_n_trips"] * wd
-        add = long_trips * wd / 7
-        removed = Xs[f"w{wd}_sh_short5"] * n * short_cut / 100
-        n2 = (n - removed + add).replace(0, np.nan)
-        km = Xs[f"w{wd}_km"] * wd
-        for c_ in ["sh_short5", "sh_short10", "sh_urban", "sh_never_warm", "sh_cold_start"]:
-            Xs[f"w{wd}_{c_}"] = ((Xs[f"w{wd}_{c_}"] * n - removed).clip(lower=0) / n2).fillna(0)
-        Xs[f"w{wd}_sh_micro"] = (Xs[f"w{wd}_sh_micro"] * n * (1 - short_cut / 100) / n2).fillna(0)
-        Xs[f"w{wd}_km_per_trip"] = (km + 40 * add) / n2
-        hours = km / Xs[f"w{wd}_speed"].replace(0, np.nan)
-        Xs[f"w{wd}_speed"] = ((km + 40 * add) / (hours + add * 0.5)).fillna(Xs[f"w{wd}_speed"])
-        if warm:
-            Xs[f"w{wd}_sh_trip_end_in_regen"] = 0
-            Xs[f"w{wd}_regen_stop_ratio"] = 0
-    if long_trips:  # un trayecto largo completa una regeneración
-        Xs[["days_since_regen", "km_since_regen"]] = 0
-    wm = whatif_model()
+    Xs = simulate(X, long_trips, short_cut, warm)
     p0, p1 = wm.predict(X)[0], wm.predict(Xs)[0]
     c = st.columns(3)
     c[0].metric("Riesgo actual (modelo what-if)", f"{p0:.0%}")

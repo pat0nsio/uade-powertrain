@@ -3,6 +3,7 @@
 Salidas en data/:
   static.parquet   1 fila por vehículo (label, fecha de producción, eventos)
   daily.parquet    1 fila por vehículo-día con uso (trips + dynamic)
+  trips.parquet    1 fila por viaje limpio (hora local, km, minutos, hollín y estado del DPF)
   quality.json     reporte de limpieza (qué se descartó y por qué)
 
 Decisiones de datos (ver EDA en README):
@@ -197,6 +198,9 @@ def build(v1_only=False):
 
     c.execute(f"copy (select * from static order by v) to '{OUT}/static.parquet'")
     c.execute(f"copy (select * from daily where v in (select v from static) order by v, day) to '{OUT}/daily.parquet'")
+    # viajes individuales (hora local): ventana de regeneración por vehículo en src/copilot.py
+    c.execute(f"""copy (select v, lts, km, mins, soot0, soot1, dpf_state0, dpf_state1 from t
+        where v in (select v from static) order by v, lts) to '{OUT}/trips.parquet'""")
     (OUT / "quality.json").write_text(json.dumps(q, indent=2, default=str))
     return q
 

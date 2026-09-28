@@ -21,6 +21,7 @@ uv pip install --python .venv -r requirements.txt   # torch CPU: --index-url htt
 .venv/bin/python -m src.models          # ensamble 5 folds + holdout + modelo what-if (≈15 min con GPU)
 .venv/bin/python -m src.evaluate        # métricas con IC, lead time vs ECU, SHAP, perfiles
 .venv/bin/python -m src.temporal        # validación temporal (despliegue simulado el 2026-01-01)
+.venv/bin/python -m src.copilot         # chequeos + resumen de receta mínima y ventana de regeneración
 .venv/bin/streamlit run app.py          # dashboard
 
 # experimentos con la red neuronal (solo la red; AUC OOF con IC y peso en el stacking -> data/nn_results.jsonl)
@@ -58,6 +59,7 @@ desde `https://download.pytorch.org/whl/rocm7.2`.
 | Pre-entrenamiento | `src/pretrain.py` | Codificador auto-supervisado (opcional, `pre=1`; evaluado y no adoptado, ver "Red neuronal"). |
 | Evaluación | `src/evaluate.py` | Holdout por vehículo, IC bootstrap por vehículo, umbral fijo y relativo a la flota (elegidos fuera de fold), lead time vs ECU, calibración, SHAP, perfiles. |
 | Validación temporal | `src/temporal.py` | Entrena con lo conocido antes de T y evalúa después de T (vehículos nuevos y misma flota); compara umbral fijo vs relativo. |
+| Copiloto | `src/copilot.py` | Receta mínima (el cambio de hábito más fácil que saca al vehículo de alerta) y ventana de regeneración (cuándo suele hacer un trayecto apto). |
 | Dashboard | `app.py` | Flota · Vehículo (SHAP, supervivencia, atención, what-if, recomendaciones) · Modelo y negocio · Calidad de datos. |
 
 ## Hallazgos de datos (calidad y trazabilidad)
@@ -118,6 +120,27 @@ La misma comparación fuera de fold (237 eventos de train) da 88 % (fijo) y 90 %
 detectan; en **anticipación** (días o km) no hay diferencia.
 
 **Qué pesa en el riesgo** (SHAP agrupado): regeneraciones ≈ patrón de uso > hollín ≈ vehículo/mercado > térmico/arranques en frío.
+
+## Copiloto del conductor: qué cambiar y cuándo
+
+**Qué viaje sirve para regenerar (medido, no supuesto).** De los 1 857 viajes que arrancan con una regeneración en
+curso, la limpieza termina antes de apagar el motor en el 30 % de los de menos de 5 min, 78 % de los de 15–20 min y
+**93 % de los de 20 min o más**; la velocidad casi no cambia la tasa. "Trayecto apto" = 20 min o más.
+
+- **Receta mínima**: recorre las combinaciones del simulador (trayectos de ruta por semana, menos viajes cortos, no
+  cortar la limpieza) y elige la de menor esfuerzo que lleva el riesgo del GBM monótono por debajo del umbral de la
+  flota (top 20 % de los últimos 30 días, la misma regla que la alerta). Si ninguna alcanza, deriva al concesionario.
+- **Ventana de regeneración**: con las últimas 12 semanas de viajes del vehículo (solo pasado), en qué día y franja
+  suele hacer un trayecto apto. Si hay uno habitual, el consejo es no acortarlo; si solo hay viajes de 10–20 min,
+  estirarlos; si no hay ninguno, planificar uno.
+
+En el primer día de alerta de los 118 vehículos del holdout que entran en alerta (52 con evento):
+- La receta alcanza en el 85 % de los casos con margen de mejora por manejo, con una reducción mediana del riesgo del
+  47 %. En el 23 % el modelo de hábitos no ve margen (el riesgo no viene del manejo reciente): va al concesionario.
+- El 58 % no tiene ningún trayecto de 20+ min habitual en la semana; el 39 % sí (la ventana indica cuándo).
+
+Son simulaciones con el modelo, no efectos causales medidos: validar que las recomendaciones evitan eventos requiere
+un piloto con intervención.
 
 ## Validación temporal (despliegue simulado el 2026-01-01)
 
