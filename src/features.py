@@ -21,7 +21,7 @@ MINS = ["dbr_min", "oil_min", "air_min"]
 CATS = ["Engine", "ModelSeries", "country"]
 WINDOWS = (7, 30, 90)
 # Nunca como feature: identifican el vehículo/cohorte o el tiempo absoluto (sesgo de muestreo: fallados son más viejos)
-NON_FEATURES = {"v", "day", "failed", "tte", "gap_to_end", "age_days", "usable", *[f"y{h}" for h in HORIZONS],
+NON_FEATURES = {"v", "day", "fold", "failed", "tte", "gap_to_end", "age_days", "usable", *[f"y{h}" for h in HORIZONS],
                 *[f"m{h}" for h in HORIZONS]}
 
 

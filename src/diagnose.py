@@ -9,8 +9,11 @@
   retrain   Despliegue simulado desde T con reentrenos: estático, trimestral y mensual (etiquetas conocidas a cada fecha).
   drift     Origen de la deriva: validación adversarial (¿se distinguen los días antes/después de T?), ablación de las
             features que más cambian y evolución temporal de eventos y tasas.
+  ecu       Política combinada (alerta = modelo O advertencia ECU) contra el modelo solo, en holdout y temporal.
+  recency   Pesos exp(-antigüedad / tau) en el entrenamiento del despliegue en T; tau elegido antes de T.
 
-Salidas: data/learning_curve.json, data/temporal_decomp.json, data/retrain.json, data/drift.json
+Salidas: data/learning_curve.json, data/temporal_decomp.json, data/retrain.json, data/drift.json,
+data/ecu_combo.json, data/recency.json
 """
 import json
 import sys
@@ -260,5 +263,163 @@ def drift(top_k=(5, 10, 20)):
     json.dump(res, open("data/drift.json", "w"), indent=2, default=float)
 
 
+# ---------------- 5. política combinada: modelo O advertencia ECU ----------------
+COMBO_PCTS = (0.005, 0.01, 0.02, 0.03, 0.05, 0.10, 0.15, 0.20, 0.30)
+
+
+def _policies(p, ref, ecu_col="ecu"):
+    """Alertas de cada política sobre el riesgo suavizado `s`: fija (cuantil de `ref`) y relativa, solas y O ECU."""
+    from src.evaluate import FPRS, fleet_threshold
+    ecu = p[ecu_col].values > 0
+    out = {}
+    for x in FPRS:
+        a = p["s"].values >= ref.quantile(1 - x)
+        out[("fijo", "modelo", x)], out[("fijo", "modelo_o_ecu", x)] = a, a | ecu
+    for x in COMBO_PCTS:
+        a = p["s"].values >= fleet_threshold(p, "s", x)
+        out[("relativo", "modelo", x)], out[("relativo", "modelo_o_ecu", x)] = a, a | ecu
+    return out
+
+
+def _compare(cal, ev, ref, label, cal_mask=None, ev_mask=None):
+    """Elige el punto de operación de cada política en `cal` (falsas alarmas <= ECU) y la evalúa en `ev`. Con máscaras,
+    las alertas se calculan sobre el frame entero (el umbral relativo mira a toda la flota) y después se recortan."""
+    from src.evaluate import leadtime
+    A_cal, A_ev = _policies(cal, ref), (_policies(ev, ref) if ev is not cal else None)
+    A_ev = A_ev or A_cal
+    if cal_mask is not None:
+        A_cal = {k: a[cal_mask] for k, a in A_cal.items()}
+        cal = cal[cal_mask].reset_index(drop=True)
+    if ev_mask is not None:
+        A_ev = {k: a[ev_mask] for k, a in A_ev.items()}
+        ev = ev[ev_mask].reset_index(drop=True)
+    ecu_cal, ecu_ev = leadtime(cal, "ecu", 0.5)[1], leadtime(ev, "ecu", 0.5)
+    res, det = {"ecu": ecu_ev[1]}, {"ecu": ecu_ev[0].set_index(["v", "event"])["detected"]}
+    for kind in ("fijo", "relativo"):
+        for pol in ("modelo", "modelo_o_ecu"):
+            keys = [k for k in A_cal if k[:2] == (kind, pol)]
+            cal_curve = {k[2]: leadtime(cal.assign(a=A_cal[k].astype(float)), "a", 0.5)[1] for k in keys}
+            ok = [x for x, c in cal_curve.items() if c["false_alarm_episodes_per_vehicle_year"]
+                  <= ecu_cal["false_alarm_episodes_per_vehicle_year"]]
+            op = max(ok) if ok else min(cal_curve)
+            curve = {}
+            for k in keys:
+                lt, s = leadtime(ev.assign(a=A_ev[k].astype(float)), "a", 0.5)
+                curve[k[2]] = s
+                if k[2] == op:
+                    det[f"{kind}_{pol}"] = lt.set_index(["v", "event"])["detected"]
+            res[f"{kind}_{pol}"] = {"operating": op, "at_op": curve[op], "curve": curve}
+    # IC95 de la diferencia de detección (combinada - modelo solo) remuestreando eventos, a su punto de operación
+    rng = np.random.default_rng(0)
+    for kind in ("fijo", "relativo"):
+        a, b = det[f"{kind}_modelo"].astype(float), det[f"{kind}_modelo_o_ecu"].astype(float).reindex(det[f"{kind}_modelo"].index)
+        d = [(b.values[i] - a.values[i]).mean() for i in (rng.integers(0, len(a), len(a)) for _ in range(2000))]
+        res[f"{kind}_delta_deteccion"] = [float(b.mean() - a.mean()), np.percentile(d, [2.5, 97.5]).round(3).tolist()]
+    print(f"== {label}  (ECU: detección {ecu_ev[1]['detection_rate']:.3f}, "
+          f"FA {ecu_ev[1]['false_alarm_episodes_per_vehicle_year']:.2f}/veh-año, {ecu_ev[1]['n_events']} eventos)")
+    for kind in ("fijo", "relativo"):
+        for pol in ("modelo", "modelo_o_ecu"):
+            r = res[f"{kind}_{pol}"]
+            print(f"  {kind:8s} {pol:13s} op={r['operating']}: detección {r['at_op']['detection_rate']:.3f} "
+                  f"FA {r['at_op']['false_alarm_episodes_per_vehicle_year']:.2f} "
+                  f"anticipación {r['at_op']['median_lead_days']:.0f} d")
+        print(f"  {kind}: Δ detección combinada - modelo {res[f'{kind}_delta_deteccion'][0]:+.3f} "
+              f"{res[f'{kind}_delta_deteccion'][1]}")
+        for pol in ("modelo", "modelo_o_ecu"):  # curva completa: ¿la combinada domina a igual tasa de falsas alarmas?
+            print(f"    curva {pol:13s} " + " ".join(
+                f"{x}:{c['detection_rate']:.2f}/{c['false_alarm_episodes_per_vehicle_year']:.2f}"
+                for x, c in res[f"{kind}_{pol}"]["curve"].items()), flush=True)
+    return res
+
+
+def ecu_combo():
+    """Alerta = modelo O advertencia ECU. Holdout por vehículo (stack, punto elegido en OOF) y validación temporal
+    (LightGBM, punto elegido en la calibración [T-90, T), como src.temporal)."""
+    from src.evaluate import smooth
+    from src.temporal import CAL, fit
+    res = {}
+    # --- holdout por vehículo ---
+    p = pd.read_parquet("data/preds.parquet", columns=["v", "day", "fold", "failed", "tte"])
+    p["day"] = pd.to_datetime(p["day"])
+    sc = pd.read_parquet("data/scores.parquet")
+    sc["day"] = pd.to_datetime(sc["day"])
+    p = p.merge(sc[["v", "day", "score_s", "ecu_warning"]], on=["v", "day"]).rename(columns={"score_s": "s", "ecu_warning": "ecu"})
+    p = p.sort_values(["v", "day"]).reset_index(drop=True)
+    oof, test = (p["fold"] >= 0).values, (p["fold"] == -1).values
+    res["holdout"] = _compare(p, p, p.loc[oof & (p["failed"] == 0).values, "s"],
+                              "holdout por vehículo (punto elegido en OOF)", oof, test)
+    # --- validación temporal ---
+    f = load().sort_values(["v", "day"]).reset_index(drop=True)
+    cols = feature_cols(f)
+    every = pd.Series(True, index=f.index)
+    t0 = T - pd.Timedelta(days=CAL)
+    for name, (trv, tev) in {"vehiculos_nuevos": (f["fold"] >= 0, f["fold"] == -1), "misma_flota": (every, every)}.items():
+        inner = fit(f, trv & known_at(f, 90, t0), 90, cols)
+        cal = trv & (f["day"] >= t0) & (f["day"] < T)
+        c = f.loc[cal, ["v", "day", "tte"]].copy()
+        c.loc[c["day"] + pd.to_timedelta(c["tte"], "D") >= T, "tte"] = np.nan  # en T no se conocen eventos futuros
+        c["failed"] = c["v"].isin(set(c.loc[c["tte"].notna(), "v"])).astype(int)
+        c["p"] = inner.predict_proba(f.loc[cal, cols])[:, 1]
+        c["s"] = smooth(c, "p")
+        c["ecu"] = (f.loc[cal, "w7_sh_over"].fillna(0) > 0).astype(float)
+        final = fit(f, trv & known_at(f, 90, T), 90, cols)
+        fut = tev & (f["day"] >= T)
+        q = f.loc[fut, ["v", "day", "failed", "tte"]].copy()
+        q["p"] = final.predict_proba(f.loc[fut, cols])[:, 1]
+        q["s"] = smooth(q, "p")
+        q["ecu"] = (f.loc[fut, "w7_sh_over"].fillna(0) > 0).astype(float)
+        res[f"temporal_{name}"] = _compare(c.reset_index(drop=True), q.reset_index(drop=True),
+                                           c.loc[c["failed"] == 0, "s"], f"temporal, {name} (punto elegido en [T-90, T))")
+    json.dump(res, open("data/ecu_combo.json", "w"), indent=2, default=float)
+
+
+# ---------------- 6. peso a los datos recientes ----------------
+def recency(taus=(None, 60, 120, 240, 480), sel_window=180):
+    """Despliegue en T con pesos exp(-antigüedad / tau) en el entrenamiento. tau se elige sin mirar el período >= T:
+    modelo con lo conocido en T - sel_window, evaluado en [T - sel_window, T) con las etiquetas conocidas en T."""
+    f = load()
+    cols = feature_cols(f)
+    every = np.ones(len(f), bool)
+    scen = {"vehiculos_nuevos": ((f["fold"] >= 0).values, (f["fold"] == -1).values), "misma_flota": (every, every)}
+    t_sel = T - pd.Timedelta(days=sel_window)
+    day = f["day"]
+    import lightgbm as lgb
+    from src.models import GBM_PARAMS
+
+    def fit_w(rows, y, t, tau):
+        w = None if tau is None else np.exp(-(t - day[rows]).dt.days.values / tau)
+        return lgb.LGBMClassifier(**GBM_PARAMS).fit(f.loc[rows, cols], y[rows], sample_weight=w)
+
+    res = {"T": str(T.date()), "sel_window": sel_window}
+    for sc, (trs, tes) in scen.items():
+        sel_auc, preds, out = {}, {}, {}
+        for h in HORIZONS:
+            m, y = f[f"m{h}"].values, f[f"y{h}"].values
+            sel_rows = trs & known_at(f, h, t_sel).values
+            sel_eval = trs & (day >= t_sel).values & (day < T).values & known_at(f, h, T).values
+            fut = tes & (day >= T).values & m
+            for tau in taus:
+                ps = fit_w(sel_rows, y, t_sel, tau).predict_proba(f.loc[sel_eval, cols])[:, 1]
+                sel_auc[(h, tau)] = roc_auc_score(y[sel_eval], ps)
+                preds[(h, tau)] = fit_w(trs & known_at(f, h, T).values, y, T, tau).predict_proba(f.loc[fut, cols])[:, 1]
+            yt, v = y[fut], f["v"].values[fut]
+            out[f"H{h}"] = {}
+            for tau in taus:
+                o = {"sel_auc": sel_auc[(h, tau)], "auc": roc_auc_score(yt, preds[(h, tau)])}
+                if tau is not None:
+                    o["delta_vs_sin_peso"] = paired_ci(yt, preds[(h, None)], preds[(h, tau)], v)
+                out[f"H{h}"][str(tau)] = o
+            print(f"{sc} H{h}: " + " | ".join(
+                f"tau={t} sel {o['sel_auc']:.3f} fut {o['auc']:.3f}"
+                + (f" Δ {o['delta_vs_sin_peso'][0]:+.3f} {o['delta_vs_sin_peso'][1]}" if "delta_vs_sin_peso" in o else "")
+                for t, o in out[f"H{h}"].items()), flush=True)
+        best = max(taus, key=lambda t: np.mean([sel_auc[(h, t)] for h in HORIZONS]))
+        out["tau_elegido"] = best
+        print(f"{sc}: tau elegido en la ventana de selección = {best}", flush=True)
+        res[sc] = out
+    json.dump(res, open("data/recency.json", "w"), indent=2, default=float)
+
+
 if __name__ == "__main__":
-    {"learning": learning, "retrain": retrain, "drift": drift}.get(next(iter(sys.argv[1:]), ""), temporal_decomp)()
+    {"learning": learning, "retrain": retrain, "drift": drift, "ecu": ecu_combo, "recency": recency}.get(
+        next(iter(sys.argv[1:]), ""), temporal_decomp)()
