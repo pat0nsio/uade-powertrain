@@ -6,3 +6,6 @@ models/*
 !models/gbm_params.json
 config.local.json
 edge/dpf_edge_model.h
+
+notebooks/exploracion/salidas/
+.ipynb_checkpoints/
