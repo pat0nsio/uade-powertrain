@@ -28,7 +28,7 @@ GROUPS = {  # hipótesis física -> prefijos de features
     "Consumo": ["fuel"],
     "Aceite": ["oil"],
     "Clima": ["air"],
-    "Vehículo / mercado": ["Engine", "ModelSeries", "country"],
+    "Vehículo / mercado": ["Engine", "ModelSeries", "country", "altitud"],
 }
 
 

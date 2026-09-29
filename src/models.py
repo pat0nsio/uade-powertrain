@@ -23,7 +23,7 @@ from sklearn.model_selection import StratifiedGroupKFold
 from sksurv.ensemble import RandomSurvivalForest
 
 from src.config import CFG, device
-from src.features import CATS, HORIZONS, MAXS, MINS, MSG_W, SUMS, TRIP_W, feature_cols
+from src.features import ALT, HORIZONS, MAXS, MINS, MSG_W, SUMS, TRIP_W, feature_cols
 
 SEED, K = 0, 5
 MOD = Path("models")
@@ -58,8 +58,14 @@ def split(f):
 
 
 # ---------------- 1. LightGBM ----------------
+def geo_mono(cols):
+    """Restricción monótona creciente para la altitud (si está entre las features); vacío si no."""
+    cols = list(cols)
+    return {"monotone_constraints": [1 if c == ALT else 0 for c in cols]} if ALT in cols else {}
+
+
 def fit_gbm(X, y):
-    return lgb.LGBMClassifier(**GBM_PARAMS).fit(X, y)
+    return lgb.LGBMClassifier(**GBM_PARAMS, **geo_mono(X.columns)).fit(X, y)
 
 
 # ---------------- 2. Random Survival Forest ----------------
@@ -147,9 +153,10 @@ class Seq:
         self.start = start.values[self.end]
         self.tab_raw = self.cat = None
         if arch["tab"]:
-            self.tab_raw = f[[c for c in feature_cols(f) if c not in CATS]].values.astype("float32")
-            self.cat = torch.from_numpy(np.column_stack([f[c].cat.codes.values + 1 for c in CATS])).long().to(DEV)
-            self.n_cats = [len(f[c].cat.categories) for c in CATS]
+            cats = [c for c in feature_cols(f) if f[c].dtype == "category"]  # según DPF_GEO al construir features
+            self.tab_raw = f[[c for c in feature_cols(f) if c not in cats]].values.astype("float32")
+            self.cat = torch.from_numpy(np.column_stack([f[c].cat.codes.values + 1 for c in cats])).long().to(DEV)
+            self.n_cats = [len(f[c].cat.categories) for c in cats]
 
     def fit_scaler(self, rows):
         seg = self.raw[np.unique(self.end[rows])]
@@ -365,7 +372,7 @@ MONO_DOWN = ["km_per_trip", "speed"]
 def monotone(cols):
     def sign(c):
         body = c.split("_", 1)[1] if c.startswith(("w7_", "w30_", "w90_", "life_")) else c
-        if body in MONO_UP or c in ("days_since_regen", "km_since_regen"):
+        if body in MONO_UP or c in ("days_since_regen", "km_since_regen", ALT):
             return 1
         return -1 if body in MONO_DOWN else 0
     return [sign(c) for c in cols]
@@ -503,7 +510,7 @@ def tune(h=90):
         for k in range(K):
             tr = (f["fold"] >= 0) & (f["fold"] != k) & f[f"m{h}"]
             va = (f["fold"] == k) & f[f"m{h}"]
-            m = lgb.LGBMClassifier(**params).fit(f.loc[tr, cols], f.loc[tr, f"y{h}"])
+            m = lgb.LGBMClassifier(**params, **geo_mono(cols)).fit(f.loc[tr, cols], f.loc[tr, f"y{h}"])
             oof[va] = m.predict_proba(f.loc[va, cols])[:, 1]
             fit_auc.append(roc_auc_score(f.loc[tr, f"y{h}"], m.predict_proba(f.loc[tr, cols])[:, 1]))
         ok = oof.notna()

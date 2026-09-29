@@ -17,7 +17,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 from src.evaluate import FPRS, REL_PCTS, cluster_ci, fleet_threshold, leadtime, pick_operating, smooth
 from src.features import HORIZONS, feature_cols
-from src.models import GBM_PARAMS
+from src.models import GBM_PARAMS, geo_mono
 
 T = pd.Timestamp("2026-01-01")
 CAL = 90  # días previos a T usados para fijar el umbral
@@ -30,7 +30,7 @@ def known_at(f, h, t):
 
 
 def fit(f, rows, h, cols):
-    return lgb.LGBMClassifier(**GBM_PARAMS).fit(f.loc[rows, cols], f.loc[rows, f"y{h}"])
+    return lgb.LGBMClassifier(**GBM_PARAMS, **geo_mono(cols)).fit(f.loc[rows, cols], f.loc[rows, f"y{h}"])
 
 
 def scenario(f, fold, train_veh, test_veh, cols):

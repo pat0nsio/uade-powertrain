@@ -1,0 +1,153 @@
+country,city,city_identified,lat,lon,altitud_m,coord_source,altitud_source
+ARG,AZUL,Azul,-36.77803,-59.85848,137.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,BAHIA BLANCA,Bahía Blanca,-38.7176,-62.26545,25.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,BALCARCE,Balcarce,-37.84638,-58.25549,117.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,CAMPANA,Campana,-34.16327,-58.95919,16.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,CAPITAL FEDERAL,Buenos Aires,-34.6037,-58.3816,18.0,manual,Open-Meteo elevation API
+ARG,COMODORO RIVADAVIA,Comodoro Rivadavia,-45.86256,-67.494,70.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,CORONEL SUAREZ,Coronel Suárez,-37.45859,-61.93294,241.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,DEVOTO,Devoto (Córdoba),-31.4039,-62.3061,111.0,manual,Open-Meteo elevation API
+ARG,DOLORES,Dolores,-36.31539,-57.67546,14.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,EL DORADO,Eldorado (Misiones),-26.4009,-54.6156,249.0,manual,Open-Meteo elevation API
+ARG,GUAYMALLEN,Guaymallén,-32.8833,-68.7833,700.0,manual,Open-Meteo elevation API
+ARG,HERNANDO,Hernando,-32.4266,-63.7331,277.0,manual,Open-Meteo elevation API
+ARG,LA PLATA,La Plata,-34.92126,-57.95442,18.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,LA RIOJA,La Rioja,-29.41328,-66.85637,508.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,LOBOS,Lobos,-35.18537,-59.09788,31.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,LOMAS DE ZAMORA,Lomas de Zamora,-34.7574,-58.40279,22.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,MORENO,Moreno,-34.63401,-58.79138,25.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,NEUQUEN,Neuquén,-38.95078,-68.0592,281.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,PERGAMINO,Pergamino,-33.89101,-60.57462,70.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,POSADAS,Posadas,-27.39184,-55.92379,119.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,RAFAELA,Rafaela,-31.25285,-61.49078,103.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,RAMOS MEJIA,Ramos Mejía,-34.65,-58.5667,29.0,manual,Open-Meteo elevation API
+ARG,RESISTENCIA,Resistencia,-27.46363,-58.98665,54.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,RIO GALLEGOS,Río Gallegos,-51.6253,-69.25229,13.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,ROSARIO,Rosario,-32.94682,-60.63932,36.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,SALTA,Salta,-24.80645,-65.41999,1178.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,SAN JOSE DE LA ESQUINA,San José de la Esquina,-33.1145,-61.7033,80.0,manual,Open-Meteo elevation API
+ARG,SAN LUIS,San Luis,-33.2914,-66.32467,739.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,SAN RAFAEL,San Rafael,-34.61531,-68.33238,702.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,SANTA FE,Santa Fe,-31.64881,-60.70868,23.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,SANTIAGO DEL ESTERO,Santiago del Estero,-27.80047,-64.26285,184.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,SARANDI,Sarandí,-34.68161,-58.34639,7.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,TIGRE,Tigre,-34.42603,-58.57962,6.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,TRELEW,Trelew,-43.24895,-65.30505,17.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,VICTORIA,Victoria,-32.61841,-60.15478,50.0,GeoNames (geonamescache),Open-Meteo elevation API
+ARG,YERBA BUENA,Yerba Buena,-26.81298,-65.29543,492.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,AMERICANA,Americana,-22.73917,-47.33139,559.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,ANAPOLIS,Anápolis,-16.32667,-48.95278,1008.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,ARACAJU,Aracaju,-10.91111,-37.07167,10.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,ARAGUAINA,Araguaína,-7.19111,-48.20722,236.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,ARIQUEMES,Ariquemes,-9.91333,-63.04083,141.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,BARREIRAS,Barreiras,-12.15278,-44.99,467.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,BAURU,Bauru,-22.31472,-49.06056,521.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,BELEM,Belém,-1.45583,-48.50444,14.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,BELO HORIZONTE,Belo Horizonte,-19.92083,-43.93778,869.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,BLUMENAU,Blumenau,-26.91944,-49.06611,21.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,BOA VISTA,Boa Vista,2.81972,-60.67333,83.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,BRASILIA,Brasília,-15.77972,-47.92972,1134.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CACOAL,Cacoal,-11.43861,-61.44722,205.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CAMPINAS,Campinas,-22.90556,-47.06083,678.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CAMPO GRANDE,Campo Grande,-20.44278,-54.64639,590.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CAMPO MOURAO,Campo Mourão,-24.04309,-52.37929,607.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CARIACICA,Cariacica,-20.26389,-40.42,72.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CARUARU,Caruaru,-8.28333,-35.97611,559.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CASCAVEL,Cascavel,-24.95583,-53.45528,781.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CATALAO,Catalão,-18.16583,-47.94639,845.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CAXIAS DO SUL,Caxias do Sul,-29.16806,-51.17944,783.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CHAPADAO DO SUL,Chapadão do Sul,-18.79417,-52.62278,810.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CHAPECO,Chapecó,-27.09639,-52.61833,663.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,COLATINA,Colatina,-19.53944,-40.63056,90.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CUIABA,Cuiabá,-15.59611,-56.09667,193.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,CURITIBA,Curitiba,-25.42778,-49.27306,922.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,DOURADOS,Dourados,-22.22111,-54.80556,447.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,FEIRA DE SANTANA,Feira de Santana,-12.26667,-38.96667,218.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,FORTALEZA,Fortaleza,-3.71722,-38.54306,14.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,FOZ DO IGUACU,Foz do Iguaçu,-25.54778,-54.58806,179.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,FREDERICO WESTPHALEN,Frederico Westphalen,-27.35917,-53.39444,529.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,GOIANIA,Goiânia,-16.67861,-49.25389,758.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,GOVERNADOR VALADARES,Governador Valadares,-18.85111,-41.94944,173.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,GUARAPUAVA,Guarapuava,-25.39048,-51.46541,1088.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,IJUI,Ijuí,-28.38778,-53.91472,325.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,IMPERATRIZ,Imperatriz,-5.52639,-47.49167,125.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,ITABUNA,Itabuna,-14.78556,-39.28028,68.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,ITAJAI,Itajaí,-26.90778,-48.66194,5.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,JARAGUA DO SUL,Jaraguá do Sul,-26.48611,-49.06667,30.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,JATAI,Jataí,-17.87939,-51.72166,741.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,JI-PARANA,Ji-Paraná,-10.8777,-61.9322,142.0,manual,Open-Meteo elevation API
+BRA,JOAO PESSOA,João Pessoa,-7.115,-34.86306,42.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,JOINVILLE,Joinville,-26.30444,-48.84556,9.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,JUIZ DE FORA,Juiz de Fora,-21.76417,-43.35028,712.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,JUNDIAI,Jundiaí,-23.18639,-46.88417,751.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,LAJEADO,Lajeado (RS),-29.4669,-51.9614,29.0,manual,Open-Meteo elevation API
+BRA,LINHARES,Linhares,-19.39111,-40.07222,38.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,LONDRINA,Londrina,-23.31028,-51.16278,599.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,MACAPA,Macapá,0.03889,-51.06639,15.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,MACEIO,Maceió,-9.66583,-35.73528,18.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,MANAUS,Manaus,-3.10194,-60.025,30.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,MARABA,Marabá,-5.38146,-49.13232,93.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,MARINGA,Maringá,-23.42528,-51.93861,557.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,MONTES CLAROS,Montes Claros,-16.735,-43.86167,704.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,NOVA ANDRADINA,Nova Andradina,-22.23333,-53.34306,371.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,NOVO HAMBURGO,Novo Hamburgo,-29.67833,-51.13056,60.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PALMAS,Palmas,-10.16745,-48.32766,272.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PARANAVAI,Paranavaí,-23.07306,-52.46528,448.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PARNAMIRIM,Parnamirim,-5.91556,-35.26278,53.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PASSO FUNDO,Passo Fundo,-28.26278,-52.40667,687.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PATO BRANCO,Pato Branco,-26.22861,-52.67056,767.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PIRACICABA,Piracicaba,-22.72528,-47.64917,527.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,POCOS DE CALDAS,Poços de Caldas,-21.78778,-46.56139,1222.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PONTA GROSSA,Ponta Grossa,-25.095,-50.16194,954.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PORTO ALEGRE,Porto Alegre,-30.03283,-51.23019,36.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PORTO VELHO,Porto Velho,-8.76194,-63.90389,90.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,PRESIDENTE PRUDENTE,Presidente Prudente,-22.12556,-51.38889,471.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,RECIFE,Recife,-8.05389,-34.88111,6.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,RIBEIRAO PRETO,Ribeirão Preto,-21.1775,-47.81028,547.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,RIO BRANCO,Rio Branco,-9.97472,-67.81,154.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,RIO DO SUL,Rio do Sul,-27.21417,-49.64306,342.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,RIO VERDE,Rio Verde,-17.79806,-50.92806,722.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,RONDONOPOLIS,Rondonópolis,-16.47083,-54.63556,229.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SALVADOR,Salvador,-12.97563,-38.49096,57.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SANTA CRUZ DO SUL,Santa Cruz do Sul,-29.7175,-52.42583,61.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SANTA MARIA,Santa Maria,-29.68417,-53.80694,154.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SAO CAETANO DO SUL,São Caetano do Sul,-23.62306,-46.55111,766.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SAO JOSE DO RIO PRETO,São José do Rio Preto,-20.81972,-49.37944,501.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SAO JOSE DOS CAMPOS,São José dos Campos,-23.17944,-45.88694,596.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SAO LUIS,São Luís,-2.52972,-44.30278,25.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SAO PAULO,São Paulo,-23.5475,-46.63611,745.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SINOP,Sinop,-11.86417,-55.5025,377.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SOROCABA,Sorocaba,-23.50167,-47.45806,595.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,SORRISO,Sorriso,-12.54528,-55.71139,366.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,TANGARA DA SERRA,Tangará da Serra,-14.61944,-57.48583,390.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,TERESINA,Teresina,-5.08917,-42.80194,88.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,TRES LAGOAS,Três Lagoas,-20.78765,-51.70338,323.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,UBERLANDIA,Uberlândia,-18.91861,-48.27722,863.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,VILHENA,Vilhena,-12.74056,-60.14583,593.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,VITORIA,Vitória,-20.31944,-40.33778,21.0,GeoNames (geonamescache),Open-Meteo elevation API
+BRA,VITORIA DA CONQUISTA,Vitória da Conquista,-14.86611,-40.83944,876.0,GeoNames (geonamescache),Open-Meteo elevation API
+CHL,PUNTA ARENAS,Punta Arenas,-53.16282,-70.90922,12.0,GeoNames (geonamescache),Open-Meteo elevation API
+CHL,SANTIAGO,Santiago,-33.45694,-70.64827,549.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,BARRANQUILLA,Barranquilla,10.96854,-74.78132,21.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,BOGOTA D.C.,Bogotá,4.711,-74.0721,2557.0,manual,Open-Meteo elevation API
+COL,BUCARAMANGA,Bucaramanga,7.125,-73.11895,1002.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,CALI,Cali,3.43054,-76.5199,960.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,CARTAGENA,Cartagena,10.39817,-75.49328,16.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,CHIA,Chía,4.85876,-74.05866,2559.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,CUCUTA,Cúcuta,7.90745,-72.5049,302.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,IBAGUE,Ibagué,4.43573,-75.20289,1135.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,MANIZALES,Manizales,5.0668,-75.50684,2123.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,MEDELLIN,Medellín,6.245,-75.57151,1473.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,MONTERIA,Montería,8.75081,-75.87823,17.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,NEIVA,Neiva,2.93001,-75.27973,458.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,PASTO,Pasto,1.21456,-77.27846,2538.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,PEREIRA,Pereira,4.81428,-75.69488,1424.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,SANTA MARTA,Santa Marta,11.23855,-74.19427,11.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,VALLEDUPAR,Valledupar,10.46538,-73.2531,174.0,GeoNames (geonamescache),Open-Meteo elevation API
+COL,VILLAVICENCIO,Villavicencio,4.13238,-73.62564,432.0,GeoNames (geonamescache),Open-Meteo elevation API
+PER,AREQUIPA,Arequipa,-16.39899,-71.53747,2342.0,GeoNames (geonamescache),Open-Meteo elevation API
+PER,CAJAMARCA,Cajamarca,-7.16378,-78.50027,2685.0,GeoNames (geonamescache),Open-Meteo elevation API
+PER,HUANCAYO,Huancayo,-12.06866,-75.21027,3255.0,GeoNames (geonamescache),Open-Meteo elevation API
+PER,LIMA,Lima,-12.04318,-77.02824,155.0,GeoNames (geonamescache),Open-Meteo elevation API
+PER,PIURA,Piura,-5.18192,-80.65715,39.0,GeoNames (geonamescache),Open-Meteo elevation API
+PRY,ASUNCION,Asunción,-25.28646,-57.647,105.0,GeoNames (geonamescache),Open-Meteo elevation API

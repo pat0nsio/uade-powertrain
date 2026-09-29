@@ -384,11 +384,11 @@ def recency(taus=(None, 60, 120, 240, 480), sel_window=180):
     t_sel = T - pd.Timedelta(days=sel_window)
     day = f["day"]
     import lightgbm as lgb
-    from src.models import GBM_PARAMS
+    from src.models import GBM_PARAMS, geo_mono
 
     def fit_w(rows, y, t, tau):
         w = None if tau is None else np.exp(-(t - day[rows]).dt.days.values / tau)
-        return lgb.LGBMClassifier(**GBM_PARAMS).fit(f.loc[rows, cols], y[rows], sample_weight=w)
+        return lgb.LGBMClassifier(**GBM_PARAMS, **geo_mono(cols)).fit(f.loc[rows, cols], y[rows], sample_weight=w)
 
     res = {"T": str(T.date()), "sel_window": sel_window}
     for sc, (trs, tes) in scen.items():

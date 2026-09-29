@@ -4,6 +4,8 @@ Salidas:
   data/calendar.parquet  vehículo x día calendario (incluye días sin uso) -> entrada de la red secuencial
   data/features.parquet  una fila por vehículo-día activo (punto de predicción) con features + labels
 """
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -18,7 +20,16 @@ TRIP_W = ["sh_short5", "sh_short10", "sh_micro", "sh_urban", "sh_never_warm", "s
 MSG_W = ["acc_mean", "sh_full", "sh_over", "sh_overloaded", "sh_regen_msg"]
 MAXS = ["soot_max", "acc_max"]
 MINS = ["dbr_min", "oil_min", "air_min"]
-CATS = ["Engine", "ModelSeries", "country"]
+# Geografía (experimento): DPF_GEO=country (por defecto, comportamiento original) | altitude | both
+#   country:  país como categórica
+#   altitude: altitud de la ciudad de venta (geo/altitud_ciudades.csv) en lugar del país; el LightGBM la usa con
+#             restricción monótona creciente (más altura, menos oxígeno, más hollín), así no puede reconocer ciudades puntuales
+#   both:     país + altitud
+GEO = os.environ.get("DPF_GEO", "country")
+assert GEO in ("country", "altitude", "both"), f"DPF_GEO inválido: {GEO}"
+ALT = "altitud_m"
+ALT_FILE = "geo/altitud_ciudades.csv"
+CATS = ["Engine", "ModelSeries"] + (["country"] if GEO in ("country", "both") else [])
 WINDOWS = (7, 30, 90)
 # Nunca como feature: identifican el vehículo/cohorte o el tiempo absoluto (sesgo de muestreo: fallados son más viejos)
 NON_FEATURES = {"v", "day", "fold", "failed", "tte", "gap_to_end", "age_days", "usable", *[f"y{h}" for h in HORIZONS],
@@ -138,11 +149,23 @@ def build():
     base["age_days"] = (base["day"] - pd.to_datetime(base["v"].map(st["prod"]))).dt.days
     for c in CATS:
         base[c] = base["v"].map(st[c]).astype("category")
+    if GEO in ("altitude", "both"):
+        base[ALT] = base["v"].map(altitude(st))
     feats = pd.concat([base, f, y], axis=1)
     feats = feats[feats["active"]].drop(columns="active").reset_index(drop=True)
     cal.to_parquet("data/calendar.parquet")
     feats.to_parquet("data/features.parquet")
     return feats
+
+
+def altitude(st):
+    """Altitud [m] de la ciudad de venta de cada vehículo (NaN si la ciudad no está en la tabla)."""
+    geo = pd.read_csv(ALT_FILE)
+    alt = geo.set_index(["country", "city"])[ALT]
+    key = pd.MultiIndex.from_arrays([st["country"], st["city"]])
+    out = pd.Series(alt.reindex(key).values, index=st.index)
+    print(f"altitud: {out.notna().mean():.1%} de los vehículos con dato ({GEO=})")
+    return out
 
 
 def feature_cols(df):
