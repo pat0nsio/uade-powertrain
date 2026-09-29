@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DPF Health Copilot</title>
+<meta name="description" content="Pitch de DPF Health Copilot para el Ford Innovation Challenge III.">
+<style>
+@font-face {
+  font-family: "Archivo";
+  src: url("fonts/archivo.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+
+:root {
+  --bg: #F3F4F0;
+  --surface: #FAFAF7;
+  --ink: #16181D;
+  --ink-2: #474B54;
+  --muted: #666A73;
+  --rule: #D7D9D2;
+  --base: #85888F;
+  --accent: #2A46B8;
+  --accent-ink: #2A46B8;
+  --tint: #E3E7F4;
+  --on-deep: #F3F4F0;
+  --deep: #1B2440;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161B;
+    --surface: #1A1D23;
+    --ink: #ECEDE8;
+    --ink-2: #BBBEC5;
+    --muted: #979BA4;
+    --rule: #2C3038;
+    --base: #6E727A;
+    --accent: #6B86E6;
+    --accent-ink: #9DB0F5;
+    --tint: #1E2438;
+    --on-deep: #ECEDE8;
+    --deep: #232C4A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14161B;
+  --surface: #1A1D23;
+  --ink: #ECEDE8;
+  --ink-2: #BBBEC5;
+  --muted: #979BA4;
+  --rule: #2C3038;
+  --base: #6E727A;
+  --accent: #6B86E6;
+  --accent-ink: #9DB0F5;
+  --tint: #1E2438;
+  --on-deep: #ECEDE8;
+  --deep: #232C4A;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  font-stretch: 100%;
+  font-variant-numeric: lining-nums tabular-nums;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Escenario fijo de 1600 x 900, escalado a la ventana */
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1600px;
+  height: 900px;
+  transform: translate(-50%, -50%) scale(var(--s, 1));
+  background: var(--bg);
+}
+.slide {
+  position: absolute;
+  inset: 0;
+  padding: 84px 112px 104px;
+  display: none;
+}
+.slide.is-active { display: grid; }
+
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  width: calc(var(--p, 0) * 100%);
+  background: var(--accent);
+  transition: width .5s cubic-bezier(.16, 1, .3, 1);
+}
+.counter {
+  position: absolute;
+  right: 112px;
+  bottom: 36px;
+  font-size: 18px;
+  color: var(--muted);
+}
+.brand {
+  position: absolute;
+  left: 112px;
+  bottom: 36px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Tipografía */
+.head {
+  font-size: 60px;
+  line-height: 1.06;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  max-width: 1180px;
+  text-wrap: balance;
+}
+.lead {
+  font-size: 30px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  max-width: 36ch;
+  text-wrap: pretty;
+}
+.body { font-size: 24px; line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+.small { font-size: 19px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.num {
+  font-stretch: 125%;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: .9;
+  white-space: nowrap;
+}
+.label { font-size: 21px; line-height: 1.35; color: var(--ink-2); margin-top: 12px; text-wrap: pretty; }
+b, strong { font-weight: 650; color: var(--ink); }
+.chart-title { font-size: 21px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+
+/* Gráficos */
+svg { display: block; overflow: visible; }
+figure svg { width: 100%; height: auto; }
+svg text { font-family: inherit; fill: var(--muted); font-size: 17px; }
+svg .tick { font-size: 17px; }
+svg .val { fill: var(--ink); font-size: 19px; font-weight: 650; }
+svg .val-strong { fill: var(--ink); font-size: 22px; font-weight: 750; }
+svg .anno { fill: var(--ink); font-size: 19px; font-weight: 600; }
+svg .anno-accent { fill: var(--accent-ink); font-size: 30px; font-weight: 800; font-stretch: 125%; }
+svg .onbar { fill: #F3F4F0; font-size: 15px; }
+svg .grid { stroke: var(--rule); stroke-width: 1; }
+svg .axis { stroke: var(--base); stroke-width: 1.5; }
+svg .band { fill: var(--tint); }
+svg .event { stroke: var(--ink); stroke-width: 1.5; }
+svg .line { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+svg .line.accent { stroke: var(--accent); }
+svg .line.base { stroke: var(--base); }
+svg .dashed { stroke-dasharray: 7 6; }
+svg .dot { stroke: var(--bg); stroke-width: 2.5; }
+svg .dot.accent, svg .fill-accent { fill: var(--accent); }
+svg .dot.base, svg .fill-base { fill: var(--base); }
+svg .gap { fill: var(--accent); opacity: .12; }
+svg .leader { stroke: var(--ink-2); stroke-width: 1.2; fill: none; }
+svg .whisker { stroke: var(--ink); stroke-width: 2; }
+
+/* Portada */
+.s-cover { grid-template-rows: auto 1fr auto; }
+.s-cover .kicker { font-size: 22px; line-height: 1.4; color: var(--ink-2); }
+.s-cover .cover {
+  align-self: center;
+  font-size: 176px;
+  line-height: .88;
+  font-weight: 800;
+  font-stretch: 125%;
+  letter-spacing: -0.04em;
+}
+.s-cover .lead { max-width: 30ch; }
+.s-cover .cover-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 48px; }
+.s-cover .team { font-size: 30px; font-weight: 700; white-space: nowrap; }
+
+/* Problema */
+.s-problem { grid-template-rows: auto 1fr auto; row-gap: 40px; }
+.chain { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 28px; align-self: center; }
+.chain li { position: relative; padding-top: 34px; }
+.chain li::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: -28px;
+  height: 3px;
+  background: var(--rule);
+}
+.chain li::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 0;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--base);
+}
+.chain li:last-child::before { right: 0; }
+.chain li:last-child::after { background: var(--ink); }
+.chain b { display: block; font-size: 28px; line-height: 1.15; margin-bottom: 10px; }
+.chain span { font-size: 21px; line-height: 1.4; color: var(--ink-2); display: block; max-width: 22ch; }
+.s-problem .stat { display: grid; grid-template-columns: auto 1fr; column-gap: 36px; align-items: end; }
+.s-problem .stat .num { font-size: 150px; }
+.s-problem .stat p { font-size: 28px; line-height: 1.35; color: var(--ink-2); max-width: 30ch; padding-bottom: 8px; }
+
+/* Señal */
+.s-signal { grid-template-columns: 1fr 360px; grid-template-rows: auto 1fr; column-gap: 72px; row-gap: 36px; }
+.s-signal .head { grid-column: 1 / -1; }
+.s-signal aside { display: grid; align-content: center; row-gap: 40px; }
+.fact .num { font-size: 60px; }
+.fact .num small { font-size: .5em; font-weight: 700; letter-spacing: 0; }
+
+/* Resultado */
+.s-result { grid-template-columns: 500px 1fr; grid-template-rows: auto 1fr auto; column-gap: 72px; row-gap: 24px; }
+.s-result .head { grid-column: 1 / -1; }
+.s-result .big { align-self: center; }
+.s-result .big .num { font-size: 260px; color: var(--accent-ink); }
+.s-result .big .num small, .s-lead .pair .num small { font-size: .38em; letter-spacing: 0; }
+.s-result .big .label { font-size: 26px; max-width: 18ch; }
+.s-result .bars { align-self: center; }
+.s-result .foot { grid-column: 1 / -1; }
+
+/* Anticipación */
+.s-lead { grid-template-columns: 440px 1fr; grid-template-rows: auto 1fr; column-gap: 64px; row-gap: 36px; }
+.s-lead .head { grid-column: 1 / -1; }
+.s-lead .pair { display: grid; align-content: center; row-gap: 56px; }
+.s-lead .pair .num { font-size: 112px; }
+.s-lead figure { align-self: center; }
+.s-lead figcaption { margin-top: 18px; }
+
+/* Copiloto */
+.s-copilot { grid-template-columns: 1fr 470px; grid-template-rows: auto 1fr; column-gap: 72px; row-gap: 32px; }
+.s-copilot .head { grid-column: 1 / -1; }
+.s-copilot figure { align-self: center; }
+.s-copilot aside { display: grid; align-content: center; row-gap: 36px; }
+.notif {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 24px 26px;
+}
+.notif .who { font-size: 17px; font-weight: 650; color: var(--muted); margin-bottom: 10px; }
+.notif p { font-size: 22px; line-height: 1.42; color: var(--ink); }
+.minis { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
+.minis .num { font-size: 58px; }
+.minis .label { font-size: 18px; }
+
+/* Tres canales */
+.s-channels { grid-template-rows: auto 1fr; row-gap: 40px; }
+.bento { display: grid; grid-template-columns: 1.1fr 1fr; grid-template-rows: auto 1fr; gap: 20px; min-height: 0; }
+.cell { border-radius: 14px; padding: 34px 38px; display: flex; flex-direction: column; min-height: 0; }
+.cell h3 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 14px; }
+.cell p { font-size: 22px; line-height: 1.42; color: var(--ink-2); max-width: 44ch; }
+.cell.dealer { grid-row: 1 / 3; background: var(--tint); justify-content: space-between; }
+.cell.dealer .num { font-size: 132px; color: var(--accent-ink); }
+.cell.driver { background: var(--surface); border: 1px solid var(--rule); }
+.cell.edge { background: var(--deep); color: var(--on-deep); justify-content: space-between; }
+.cell.edge h3, .cell.edge b { color: var(--on-deep); }
+.cell.edge p { color: color-mix(in srgb, var(--on-deep) 80%, transparent); font-size: 20px; }
+.cell.edge .num { font-size: 72px; }
+.cell.edge .num small { font-size: 22px; font-weight: 600; font-stretch: 100%; letter-spacing: 0; margin-left: 14px; }
+
+/* Robustez */
+.s-robust { grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr auto; column-gap: 0; row-gap: 36px; }
+.s-robust .head { grid-column: 1 / -1; }
+.s-robust .side { align-self: center; padding-right: 64px; }
+.s-robust .side + .side { padding: 0 0 0 64px; border-left: 2px solid var(--rule); }
+.s-robust .side h3 { font-size: 22px; font-weight: 650; color: var(--muted); margin-bottom: 20px; }
+.s-robust .side .num { font-size: 112px; }
+.s-robust .side .num.bad { color: var(--ink); }
+.s-robust .side .num.good { color: var(--accent-ink); }
+.s-robust .side .body { margin-top: 18px; max-width: 30ch; }
+.s-robust .foot { grid-column: 1 / -1; font-size: 26px; color: var(--ink); font-weight: 600; }
+
+/* Rigor */
+.s-rigor { grid-template-columns: 1fr 520px; grid-template-rows: auto 1fr; column-gap: 80px; row-gap: 40px; }
+.s-rigor .head { grid-column: 1 / -1; }
+.checks { display: grid; grid-template-columns: 1fr 1fr; column-gap: 44px; row-gap: 40px; align-content: center; }
+.checks div { border-top: 2px solid var(--ink); padding-top: 18px; }
+.checks b { display: block; font-size: 25px; line-height: 1.2; margin-bottom: 10px; }
+.checks p { font-size: 20px; line-height: 1.42; color: var(--ink-2); }
+.s-rigor figure { align-self: center; }
+.s-rigor figure .small { margin-top: 14px; }
+
+/* Dinero */
+.s-money { grid-template-columns: 1fr 470px; grid-template-rows: auto 1fr auto; column-gap: 64px; row-gap: 28px; }
+.s-money .head { grid-column: 1 / -1; max-width: 1250px; }
+.s-money figure { align-self: center; }
+.costs { align-self: center; }
+.costs h3 { font-size: 22px; font-weight: 650; margin-bottom: 14px; }
+.costs dl { display: grid; grid-template-columns: 1fr auto; }
+.costs dt, .costs dd { font-size: 21px; line-height: 1.3; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.costs dt { color: var(--ink-2); }
+.costs dd { font-weight: 650; text-align: right; padding-left: 20px; }
+.costs .even { margin-top: 22px; font-size: 21px; line-height: 1.42; color: var(--ink-2); }
+.s-money .foot { grid-column: 1 / -1; }
+
+/* Hoy vs mañana */
+.s-compare { grid-template-rows: auto 1fr; row-gap: 36px; }
+.cmp { border-collapse: collapse; width: 100%; align-self: center; }
+.cmp th, .cmp td { text-align: left; vertical-align: top; padding: 20px 24px 20px 0; font-size: 23px; line-height: 1.35; }
+.cmp thead th { font-size: 20px; font-weight: 650; color: var(--muted); padding-bottom: 14px; border-bottom: 2px solid var(--ink); }
+.cmp thead th:last-child { color: var(--accent-ink); }
+.cmp tbody th { font-weight: 650; width: 25%; }
+.cmp tbody td:nth-child(2) { color: var(--muted); width: 33%; }
+.cmp tbody td:nth-child(3) { color: var(--ink); font-weight: 550; }
+.cmp tbody tr + tr > * { border-top: 1px solid var(--rule); }
+
+/* Hoja de ruta */
+.s-road { grid-template-rows: auto 1fr auto; row-gap: 36px; }
+.road { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 24px; align-self: center; }
+.road li { position: relative; padding-top: 30px; }
+.road li::before { content: ""; position: absolute; top: 0; left: 0; right: -24px; height: 3px; background: var(--accent); }
+.road li:last-child::before { right: 0; }
+.road .when { font-size: 19px; font-weight: 650; color: var(--accent-ink); }
+.road h3 { font-size: 30px; line-height: 1.12; font-weight: 700; margin: 8px 0 14px; }
+.road p { font-size: 20px; line-height: 1.42; color: var(--ink-2); max-width: 24ch; }
+.road .gate { margin-top: 16px; font-size: 18px; color: var(--muted); }
+.road .gate b { font-weight: 650; color: var(--ink-2); }
+
+/* Cierre */
+.s-close { grid-template-rows: 1fr auto; row-gap: 56px; }
+.s-close .ask { align-self: center; }
+.s-close .ask .head { font-size: 92px; letter-spacing: -0.03em; max-width: 13ch; }
+.s-close .ask .lead { margin-top: 28px; max-width: 40ch; }
+.recap { display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; border-top: 2px solid var(--ink); padding-top: 28px; }
+.recap .num { font-size: 52px; }
+.recap .label { font-size: 19px; max-width: 21ch; }
+
+/* Movimiento: una entrada por slide, en orden de lectura */
+@media (prefers-reduced-motion: no-preference) {
+  .slide.is-active [data-r] {
+    animation: rise .7s cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+  .slide.is-active .grow-x { animation: grow-x 1s cubic-bezier(.16, 1, .3, 1) both; animation-delay: calc(300ms + var(--i, 0) * 120ms); }
+  .slide.is-active .grow-y { animation: grow-y .9s cubic-bezier(.16, 1, .3, 1) both; animation-delay: calc(300ms + var(--i, 0) * 70ms); }
+  .slide.is-active .draw { stroke-dasharray: 1; animation: draw 1.4s cubic-bezier(.45, 0, .2, 1) both; animation-delay: 350ms; }
+}
+.grow-x { transform-box: fill-box; transform-origin: left center; }
+.grow-y { transform-box: fill-box; transform-origin: center bottom; }
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes grow-x { from { transform: scaleX(0); } }
+@keyframes grow-y { from { transform: scaleY(0); } }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+/* Imprimir o exportar a PDF: una slide por página */
+@page { size: 1600px 900px; margin: 0; }
+@media print {
+  html, body { height: auto; overflow: visible; }
+  .stage { position: static; transform: none; }
+  .slide { display: grid !important; position: relative; width: 1600px; height: 900px; break-after: page; }
+  .progress, .counter { display: none; }
+  .brand { display: none; }
+}
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+
+  <section class="slide s-cover" aria-label="Portada">
+    <p class="kicker" data-r>Ford Innovation Challenge III<br>Data-Driven Powertrain Intelligence</p>
+    <h1 class="cover" data-r>DPF Health<br>Copilot</h1>
+    <div class="cover-foot" data-r>
+      <p class="lead">Anticipamos la saturación del filtro de partículas meses antes de que llegue al taller, con la telemetría que Ford ya recibe.</p>
+      <p class="team">Equipo San Miguel</p>
+    </div>
+  </section>
+
+  <section class="slide s-problem" aria-label="El problema">
+    <h2 class="head" data-r>Hoy el filtro se degrada en silencio y el problema aparece en el taller.</h2>
+    <ol class="chain" data-r>
+      <li><b>Trayectos cortos</b><span>El motor no sostiene la temperatura que necesita la limpieza del filtro.</span></li>
+      <li><b>Limpieza incompleta</b><span>La regeneración se corta antes de quemar todo el hollín.</span></li>
+      <li><b>Hollín acumulado</b><span>El filtro se satura y el motor pierde eficiencia.</span></li>
+      <li><b>Visita imprevista</b><span>Costo de garantía, cliente insatisfecho y agenda del taller desordenada.</span></li>
+    </ol>
+    <div class="stat" data-r>
+      <span class="num">45&nbsp;%</span>
+      <p>de los eventos llega sin ninguna advertencia de la ECU en los seis meses previos.</p>
+    </div>
+  </section>
+
+  <section class="slide s-signal" aria-label="La señal">
+    <h2 class="head" data-r>La telemetría que Ford ya recibe muestra el problema 90 días antes.</h2>
+    <figure data-r>
+      <figcaption class="chart-title">Mensajes del filtro sobre el límite, en % de los mensajes</figcaption>
+      <svg id="c-signal" viewBox="0 0 860 440" width="860" height="440" role="img" aria-label="Los mensajes de filtro sobre el límite pasan de 0,6 % a 2,4 % en los 90 días previos al evento y vuelven a 0,4 % después del service."></svg>
+    </figure>
+    <aside>
+      <div class="fact" data-r><span class="num">66 a 71<small>&nbsp;%</small></span><p class="label">de viajes de menos de 5 km en los meses previos al evento</p></div>
+      <div class="fact" data-r><span class="num">300 a 320<small>&nbsp;km</small></span><p class="label">entre una limpieza del filtro y la siguiente</p></div>
+      <p class="small" data-r>Vehículos con evento, alineados en la fecha del evento. Después del service todo vuelve a la normalidad.</p>
+    </aside>
+  </section>
+
+  <section class="slide s-result" aria-label="Resultado">
+    <h2 class="head" data-r>Con las mismas falsas alarmas que la ECU, detecta muchos más eventos.</h2>
+    <div class="big" data-r>
+      <span class="num"><span data-count="89">89</span><small>&nbsp;%</small></span>
+      <p class="label">de los eventos, detectados antes de que ocurran</p>
+    </div>
+    <figure class="bars" data-r>
+      <svg id="c-result" viewBox="0 0 800 330" width="800" height="330" role="img" aria-label="DPF Health Copilot detecta 89 % de los eventos, intervalo 80 a 96 %, con 0,61 falsas alarmas por vehículo y año. La advertencia actual de la ECU detecta 55 %, intervalo 43 a 68 %, con 0,60."></svg>
+    </figure>
+    <p class="small foot" data-r>Medido en 198 vehículos que el modelo nunca vio, con 56 eventos. Las líneas finas son el intervalo de confianza del 95 %.</p>
+  </section>
+
+  <section class="slide s-lead" aria-label="Anticipación">
+    <h2 class="head" data-r>Avisa con meses de margen para que el taller y el conductor actúen.</h2>
+    <div class="pair">
+      <div data-r><span class="num">124<small>&nbsp;días</small></span><p class="label">de anticipación mediana entre la primera alerta y el evento</p></div>
+      <div data-r><span class="num">4.492<small>&nbsp;km</small></span><p class="label">recorridos en ese tiempo: margen para agendar el turno o cambiar el hábito</p></div>
+    </div>
+    <figure data-r>
+      <figcaption class="chart-title">Un vehículo real del grupo de prueba: riesgo de evento a 90 días</figcaption>
+      <svg id="c-vehicle" viewBox="0 0 900 420" width="900" height="420" role="img" aria-label="El riesgo del vehículo supera el umbral de la flota 129 días antes del evento y sube hasta 34 % antes del evento. La ECU no emitió advertencias en ese período."></svg>
+      <figcaption class="small">La alerta se encendió 129 días antes del evento. La ECU no emitió ninguna advertencia en ese período.</figcaption>
+    </figure>
+  </section>
+
+  <section class="slide s-copilot" aria-label="Copiloto del conductor">
+    <h2 class="head" data-r>Además le dice al conductor qué hacer para evitarlo.</h2>
+    <figure data-r>
+      <figcaption class="chart-title">Limpiezas que terminan antes de apagar el motor, según la duración del viaje</figcaption>
+      <svg id="c-regen" viewBox="0 0 820 420" width="820" height="420" role="img" aria-label="La limpieza termina en el 30 % de los viajes de menos de 5 minutos y en el 93 % de los de 20 minutos o más."></svg>
+    </figure>
+    <aside>
+      <div class="notif" data-r>
+        <p class="who">Mensaje de ejemplo en la app</p>
+        <p>Tu filtro está acumulando hollín más rápido que lo habitual. Los jueves a la tarde solés hacer un viaje de más de 20 minutos: mantenelo esta semana y sumá uno de ruta.</p>
+      </div>
+      <div class="minis" data-r>
+        <div><span class="num">85&nbsp;%</span><p class="label">de las alertas con margen por manejo se resuelven con un cambio de hábito</p></div>
+        <div><span class="num">&minus;47&nbsp;%</span><p class="label">de riesgo mediano al seguir la recomendación</p></div>
+      </div>
+      <p class="small" data-r>Efectos simulados con el modelo. El piloto propuesto los mide en la flota real.</p>
+    </aside>
+  </section>
+
+  <section class="slide s-channels" aria-label="Tres canales">
+    <h2 class="head" data-r>Un mismo modelo, tres canales de valor.</h2>
+    <div class="bento">
+      <div class="cell dealer" data-r>
+        <div>
+          <h3>Red de concesionarios</h3>
+          <p>Ranking diario de la flota por riesgo, con los hábitos que lo explican. La alerta marca al 20 % de mayor riesgo, así que el volumen es fijo por diseño: el taller sabe cuántos turnos reservar.</p>
+        </div>
+        <span class="num">Top 20&nbsp;%</span>
+      </div>
+      <div class="cell driver" data-r>
+        <h3>Conductor</h3>
+        <p>Una recomendación concreta en la app: qué viaje hacer y en qué momento de su semana. Si el manejo no alcanza, lo deriva al concesionario.</p>
+      </div>
+      <div class="cell edge" data-r>
+        <div>
+          <h3>Dentro del vehículo</h3>
+          <p>Versión en C para la ECU o el módulo telemático, sin conectividad. Detecta <b>77&nbsp;%</b> de los eventos contra 55&nbsp;% de la ECU actual. Solo informa: nunca actúa sobre el motor.</p>
+        </div>
+        <span class="num">290 B<small>de memoria por vehículo</small></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide s-robust" aria-label="Robustez">
+    <h2 class="head" data-r>Cuando una señal de la flota se cortó, el sistema siguió viendo.</h2>
+    <div class="side" data-r>
+      <h3>El 26 de mayo de 2026 dejaron de llegar los eventos de regeneración de toda la flota</h3>
+      <span class="num bad">4 a 41&nbsp;%</span>
+      <p class="body">Así habría subido el riesgo medio de los vehículos sanos usando la señal tal como llegaba.</p>
+    </div>
+    <div class="side" data-r>
+      <h3>Reconstruimos cada limpieza desde la carga de hollín, que nunca se cortó</h3>
+      <span class="num good">91&nbsp;%</span>
+      <p class="body">de las limpiezas reales recuperadas, validado contra la señal original. Sumó 37&nbsp;% más casos para entrenar.</p>
+    </div>
+    <p class="foot" data-r>En producción las señales se cortan. Este sistema lo detecta y se recupera.</p>
+  </section>
+
+  <section class="slide s-rigor" aria-label="Validación">
+    <h2 class="head" data-r>Evaluado como si ya estuviera funcionando en la flota.</h2>
+    <div class="checks" data-r>
+      <div><b>198 vehículos que el modelo nunca vio</b><p>Ninguna decisión del diseño se tomó mirándolos.</p></div>
+      <div><b>Puesta en marcha simulada</b><p>Entrenado solo con lo que se sabía el 1 de enero de 2026 y evaluado después.</p></div>
+      <div><b>La ventaja se sostiene en el tiempo</b><p>64&nbsp;% contra 53&nbsp;% de la ECU en vehículos nuevos, con menos falsas alarmas. Más chica que en la prueba principal, y lo reportamos.</p></div>
+      <div><b>Reentreno mensual</b><p>Mejora de forma medible la precisión sobre la flota ya monitoreada.</p></div>
+    </div>
+    <figure data-r>
+      <figcaption class="chart-title">Más vehículos con datos, mejor modelo</figcaption>
+      <svg id="c-learn" viewBox="0 0 520 380" width="520" height="380" role="img" aria-label="La precisión del modelo, medida como AUC a 90 días, sube de 0,742 con 158 vehículos a 0,800 con 635, sin aplanarse."></svg>
+      <figcaption class="small">Precisión (AUC a 90 días) según los vehículos usados para entrenar. Cada duplicación suma unos 0,03.</figcaption>
+    </figure>
+  </section>
+
+  <section class="slide s-money" aria-label="Factibilidad económica">
+    <h2 class="head" data-r>Entre USD 0,3 y 0,7 millones de ahorro adicional por año, cada 50.000 vehículos.</h2>
+    <figure data-r>
+      <figcaption class="chart-title">Ahorro neto por año, en millones de USD</figcaption>
+      <svg id="c-money" viewBox="0 0 860 420" width="860" height="420" role="img" aria-label="Con 60 % de eventos evitados, el ahorro neto es de 1,87 millones de USD con DPF Health Copilot contra 1,12 millones con la advertencia actual: 0,74 millones más por año."></svg>
+    </figure>
+    <div class="costs" data-r>
+      <h3>Lo que cuesta</h3>
+      <dl>
+        <dt>Licencias de software</dt><dd>USD 0</dd>
+        <dt>Hardware a bordo</dt><dd>USD 0</dd>
+        <dt>Nube, por año</dt><dd>USD 3.500 a 5.000</dd>
+        <dt>Integración inicial</dt><dd>4 a 6 meses</dd>
+      </dl>
+      <p class="even">El caso se sostiene si cada evento cuesta más de <b>USD 340</b>. Limpiar el filtro cuesta USD 400 a 650 y reemplazarlo, USD 2.400 a 3.300.</p>
+    </div>
+    <p class="small foot" data-r>Supuestos a validar con Ford: 0,05 eventos por vehículo y año, USD 1.800 por evento y 60 % de eventos evitados cuando la alerta llega a tiempo. El rango usa las tasas de la prueba principal y las de la puesta en marcha simulada.</p>
+  </section>
+
+  <section class="slide s-compare" aria-label="Hoy frente a la solución">
+    <h2 class="head" data-r>Del taller imprevisto al mantenimiento planificado.</h2>
+    <table class="cmp" data-r>
+      <thead><tr><th scope="col"></th><th scope="col">Hoy</th><th scope="col">Con DPF Health Copilot</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Eventos anticipados</th><td>55 %</td><td>89 %, con las mismas falsas alarmas</td></tr>
+        <tr><th scope="row">Momento del aviso</th><td>Cuando el filtro ya está sobre el límite</td><td>Meses antes, cuando el patrón de uso empieza a cambiar</td></tr>
+        <tr><th scope="row">Qué hace el cliente</th><td>Ir al taller</td><td>Un cambio de hábito concreto; el taller, solo si no alcanza</td></tr>
+        <tr><th scope="row">Explicación</th><td>Un mensaje de estado</td><td>Qué hábitos pesan en el riesgo de su vehículo</td></tr>
+        <tr><th scope="row">Concesionario</th><td>Demanda imprevista</td><td>Ranking diario y volumen de alertas acordado</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="slide s-road" aria-label="Hoja de ruta">
+    <h2 class="head" data-r>Un camino a producción que reduce el riesgo en cada paso.</h2>
+    <ol class="road" data-r>
+      <li><p class="when">3 meses</p><h3>Modo sombra</h3><p>Corre sobre la flota real sin notificar y se compara con los eventos que ocurren.</p><p class="gate"><b>Avanza si</b> iguala o supera a la ECU.</p></li>
+      <li><p class="when">6 meses</p><h3>Piloto con conductores</h3><p>Un grupo recibe recomendaciones y otro no, asignados al azar.</p><p class="gate"><b>Avanza si</b> baja la cantidad de eventos.</p></li>
+      <li><p class="when">Continuo</p><h3>Flota completa en la nube</h3><p>Reentreno mensual automático y volumen de alertas acordado con los concesionarios.</p><p class="gate"><b>Sigue si</b> el desempeño es estable mes a mes.</p></li>
+      <li><p class="when">Ciclo de ECU</p><h3>Alerta a bordo</h3><p>Se instala por actualización remota firmada en módulos existentes.</p><p class="gate"><b>Avanza si</b> pasa la validación en banco y vehículo.</p></li>
+    </ol>
+    <p class="body" data-r>El mismo método sirve para otras degradaciones que dejan rastro en la telemetría: EGR, catalizador, batería y aceite.</p>
+  </section>
+
+  <section class="slide s-close" aria-label="Cierre">
+    <div class="ask">
+      <h2 class="head" data-r>Empecemos con tres meses en modo sombra.</h2>
+      <p class="lead" data-r>Sobre la flota real, sin notificar a nadie, comparando cada alerta con los eventos que ocurran.</p>
+    </div>
+    <div class="recap" data-r>
+      <div><span class="num">89&nbsp;%</span><p class="label">de eventos anticipados, contra 55&nbsp;% hoy</p></div>
+      <div><span class="num">4.492 km</span><p class="label">de margen mediano para actuar</p></div>
+      <div><span class="num">USD 0,3 a 0,7 M</span><p class="label">de ahorro por año cada 50.000 vehículos</p></div>
+      <div><span class="num">290 B</span><p class="label">para correr dentro del vehículo</p></div>
+    </div>
+  </section>
+
+  <p class="brand">DPF Health Copilot</p>
+  <p class="counter" id="counter" aria-live="polite"></p>
+  <div class="progress" id="progress"></div>
+</main>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const text = (parent, x, y, s, cls, anchor = "start") => {
+    const t = el("text", { x, y, class: cls, "text-anchor": anchor }, parent);
+    t.textContent = s;
+    return t;
+  };
+  const tip = (node, s) => { el("title", {}, node).textContent = s; return node; };
+  const lin = (d0, d1, r0, r1) => v => r0 + (v - d0) / (d1 - d0) * (r1 - r0);
+  const fmt = (v, dec = 0) => v.toLocaleString("es-AR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const signed = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v);
+  // Barra con el extremo de datos redondeado (4 px) y la base recta
+  const hbar = (x, y, w, h, r = 4) =>
+    `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`;
+  const vbar = (x, y, w, h, r = 4) =>
+    `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+
+  // Figura 3 del informe: mensajes de DPF sobre el límite, bloques de 30 días respecto del evento
+  function chartSignal(svg) {
+    const W = 860, H = 440, m = { l: 64, r: 16, t: 20, b: 64 };
+    const x = lin(-180, 90, m.l, W - m.r), y = lin(0, 3, H - m.b, m.t);
+    el("rect", { x: x(-90), y: m.t, width: x(0) - x(-90), height: H - m.b - m.t, class: "band" }, svg);
+    text(svg, x(-45), H - m.b - 14, "90 días previos", "tick", "middle");
+    for (const t of [0, 1, 2, 3]) {
+      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t ? "grid" : "axis" }, svg);
+      text(svg, m.l - 12, y(t) + 6, fmt(t) + " %", "tick", "end");
+    }
+    for (const t of [-180, -90, 0, 90]) text(svg, x(t), H - m.b + 30, signed(t), "tick", "middle");
+    text(svg, (m.l + W - m.r) / 2, H - 6, "días respecto del evento", "tick", "middle");
+    el("line", { x1: x(0), x2: x(0), y1: m.t, y2: H - m.b, class: "event" }, svg);
+    text(svg, x(0) + 10, m.t + 18, "service", "tick");
+    const pts = [[-165, .58], [-135, .55], [-105, .85], [-75, 2.0], [-45, 2.42], [-15, 2.35], [15, .40], [45, .42], [75, .35]];
+    el("path", { d: "M" + pts.map(p => x(p[0]) + "," + y(p[1])).join("L"), class: "line accent draw", pathLength: 1 }, svg);
+    pts.forEach(p => tip(el("circle", { cx: x(p[0]), cy: y(p[1]), r: 7, class: "dot accent" }, svg),
+      `${signed(p[0] - 15)} a ${signed(p[0] + 15)} días: ${fmt(p[1], 2)} %`));
+    text(svg, x(-45), y(2.42) - 24, "×4", "anno-accent", "middle");
+  }
+
+  // Tabla 8 del informe: detección en el holdout, con IC 95 %
+  function chartResult(svg) {
+    const W = 800, m = { l: 0, r: 20 };
+    const x = lin(0, 100, m.l, W - m.r);
+    const rows = [
+      { name: "DPF Health Copilot", v: 89, lo: 80, hi: 96, fa: "0,61", cls: "fill-accent", y: 40 },
+      { name: "Advertencia actual de la ECU", v: 55, lo: 43, hi: 68, fa: "0,60", cls: "fill-base", y: 200 },
+    ];
+    rows.forEach((r, i) => {
+      text(svg, 0, r.y - 14, r.name, "val");
+      text(svg, W - m.r, r.y - 14, `${r.fa} falsas alarmas por vehículo y año`, "tick", "end");
+      const b = tip(el("path", { d: hbar(x(0), r.y, x(r.v) - x(0), 64), class: r.cls + " grow-x", style: `--i:${i}` }, svg),
+        `${r.name}: ${r.v} % (IC 95 %: ${r.lo} a ${r.hi} %)`);
+      text(svg, x(0) + 18, r.y + 42, r.v + " %", "onbar").setAttribute("style", "font-size:24px;font-weight:750");
+      el("line", { x1: x(r.lo), x2: x(r.hi), y1: r.y + 32, y2: r.y + 32, class: "whisker" }, svg);
+      for (const e of [r.lo, r.hi]) el("line", { x1: x(e), x2: x(e), y1: r.y + 22, y2: r.y + 42, class: "whisker" }, svg);
+    });
+    el("line", { x1: x(0), x2: x(0), y1: 24, y2: 280, class: "axis" }, svg);
+    text(svg, W - m.r, 318, "+34 puntos con la misma tasa de falsas alarmas", "anno", "end");
+  }
+
+  // Figura 5 del informe: riesgo a 90 días (media de 7 días) y umbral de la flota de un vehículo del holdout
+  const VEH = [[-182,2.7,12.4],[-180,2.7,12.4],[-173,2.9,12.4],[-172,3.5,12.3],[-171,3.7,12.3],[-168,3.8,12.4],[-166,4.1,12.5],[-164,4.2,12.6],[-161,4.2,12.8],[-158,4.3,13.0],[-154,4.4,13.2],[-150,4.7,13.5],[-149,4.7,13.5],[-145,4.5,13.6],[-139,3.9,13.6],[-137,3.8,13.5],[-136,4.0,13.4],[-132,5.1,13.3],[-131,6.4,13.3],[-130,9.7,13.2],[-129,14.9,13.2],[-128,16.2,13.2],[-126,16.3,13.1],[-125,17.2,13.1],[-124,17.3,13.1],[-123,16.5,13.1],[-122,14.1,13.1],[-121,12.8,13.1],[-120,12.2,13.0],[-119,11.2,13.0],[-118,10.9,13.0],[-117,10.4,13.0],[-116,9.9,13.0],[-115,9.6,13.0],[-114,9.1,13.0],[-113,9.3,12.9],[-112,9.3,12.9],[-111,9.9,12.9],[-110,10.8,13.0],[-109,11.5,13.0],[-108,12.1,12.9],[-107,13.1,12.9],[-106,13.8,12.9],[-105,14.5,12.9],[-103,14.9,12.9],[-101,15.7,13.0],[-100,15.3,13.0],[-99,15.2,13.0],[-98,14.8,13.0],[-97,14.4,13.0],[-96,13.8,13.0],[-95,13.6,13.0],[-94,13.0,13.0],[-93,12.6,13.0],[-92,12.2,12.9],[-91,11.7,12.9],[-90,11.5,12.9],[-89,11.4,12.9],[-88,11.2,12.9],[-87,11.2,12.8],[-86,11.4,12.8],[-85,11.4,12.7],[-84,11.6,12.7],[-83,11.6,12.7],[-82,11.3,12.7],[-81,11.2,12.6],[-80,10.7,12.6],[-79,10.5,12.5],[-78,10.3,12.5],[-77,10.2,12.5],[-76,10.3,12.4],[-75,10.6,12.4],[-74,10.8,12.4],[-73,11.4,12.4],[-72,11.6,12.3],[-71,11.7,12.3],[-70,11.9,12.3],[-69,11.8,12.2],[-68,11.6,12.2],[-67,11.4,12.2],[-60,13.1,12.1],[-59,11.8,12.1],[-58,11.5,12.1],[-57,11.5,12.1],[-56,11.6,12.1],[-55,11.6,12.2],[-54,11.9,12.3],[-53,12.1,12.3],[-52,12.6,12.4],[-51,12.7,12.4],[-50,13.2,12.4],[-49,13.6,12.4],[-48,14.2,12.5],[-47,14.3,12.6],[-46,14.4,12.6],[-42,15.9,12.8],[-41,16.8,12.9],[-40,17.7,12.9],[-39,18.4,13.0],[-38,18.5,13.1],[-37,18.5,13.1],[-36,18.5,13.1],[-35,18.8,13.2],[-34,19.0,13.3],[-33,19.7,13.3],[-32,21.1,13.4],[-31,22.1,13.4],[-30,23.3,13.4],[-29,24.1,13.5],[-28,25.1,13.5],[-27,25.7,13.6],[-26,26.1,13.5],[-25,25.5,13.5],[-24,25.0,13.5],[-23,24.6,13.5],[-22,25.1,13.3],[-21,25.0,13.3],[-20,25.0,13.3],[-19,25.0,13.4],[-18,24.9,13.4],[-14,25.8,13.3],[-13,28.0,13.3],[-12,29.6,13.3],[-11,32.6,13.3],[-10,33.7,13.2],[-9,33.7,13.2],[-8,33.3,13.1],[-7,32.8,13.1],[-6,32.6,13.1],[-5,31.8,13.1],[-4,30.4,13.0],[-3,28.4,13.0],[-2,26.5,13.0],[-1,25.3,12.9],[0,24.9,12.9],[1,24.0,12.9],[2,22.9,12.9],[3,22.0,12.9],[4,21.3,12.9],[5,20.7,12.9],[6,20.2,12.9],[7,19.4,12.9],[8,18.2,13.0],[9,17.7,13.0],[10,17.3,13.0],[11,16.8,13.1],[12,16.7,13.0],[13,16.3,13.0],[14,15.9,13.0],[15,16.0,13.0],[16,16.1,13.0],[17,16.0,13.0],[18,16.1,13.0],[19,16.1,13.0],[20,16.1,13.0],[21,15.7,13.0],[22,15.0,13.1],[23,14.9,13.1],[24,14.7,13.1],[25,14.3,13.2],[26,13.5,13.2],[27,13.0,13.2],[28,13.1,13.2],[29,13.3,13.3],[30,12.8,13.3],[31,12.8,13.3],[32,13.1,13.3],[34,13.7,13.3],[35,14.1,13.4],[36,14.1,13.5],[37,14.2,13.5],[38,14.2,13.5],[39,13.9,13.5],[40,13.8,13.5]];
+  function chartVehicle(svg) {
+    const W = 900, H = 420, m = { l: 56, r: 16, t: 20, b: 64 };
+    const x = lin(-185, 40, m.l, W - m.r), y = lin(0, 40, H - m.b, m.t);
+    // días en alerta antes del evento
+    let run = null;
+    const flush = end => { if (run !== null) el("rect", { x: x(run), y: m.t, width: Math.max(2, x(end) - x(run)), height: H - m.b - m.t, class: "band" }, svg); run = null; };
+    VEH.forEach(([d, r, t], i) => {
+      const on = r >= t && d <= 0;
+      if (on && run === null) run = d;
+      if (!on) flush(d);
+      if (i === VEH.length - 1) flush(d);
+    });
+    for (const t of [0, 10, 20, 30, 40]) {
+      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t ? "grid" : "axis" }, svg);
+      text(svg, m.l - 12, y(t) + 6, t + " %", "tick", "end");
+    }
+    for (const t of [-180, -150, -120, -90, -60, -30, 0, 30]) text(svg, x(t), H - m.b + 30, signed(t), "tick", "middle");
+    text(svg, (m.l + W - m.r) / 2, H - 6, "días respecto del evento", "tick", "middle");
+    el("path", { d: "M" + VEH.map(p => x(p[0]) + "," + y(p[2])).join("L"), class: "line base dashed" }, svg).setAttribute("style", "stroke-width:2");
+    el("path", { d: "M" + VEH.map(p => x(p[0]) + "," + y(p[1])).join("L"), class: "line accent draw", pathLength: 1 }, svg);
+    el("line", { x1: x(0), x2: x(0), y1: m.t, y2: H - m.b, class: "event" }, svg);
+    text(svg, x(0) + 10, m.t + 18, "evento", "tick");
+    text(svg, x(-185) + 4, y(8.5), "umbral de alerta de la flota", "tick");
+    const first = VEH.find(p => p[1] >= p[2] && p[0] < 0);
+    el("path", { d: `M${x(first[0])},${y(first[1]) - 10}L${x(first[0]) + 40},${y(31)}H${x(first[0]) + 60}`, class: "leader" }, svg);
+    text(svg, x(first[0]) + 68, y(31) + 6, `primera alerta: ${-first[0]} días antes`, "anno");
+    tip(el("circle", { cx: x(first[0]), cy: y(first[1]), r: 7, class: "dot accent" }, svg), `${-first[0]} días antes: riesgo ${fmt(first[1], 1)} %`);
+  }
+
+  // Figura 8 del informe: limpiezas completadas según la duración del viaje
+  function chartRegen(svg) {
+    const W = 820, H = 420, m = { l: 8, r: 8, t: 56, b: 70 };
+    const data = [["0 a 5", 30, 744], ["5 a 10", 45, 308], ["10 a 15", 69, 173], ["15 a 20", 78, 118], ["20 a 30", 93, 131], ["30 a 60", 93, 115], ["más de 60", 96, 81]];
+    const step = (W - m.l - m.r) / data.length, bw = step - 14;
+    const y = lin(0, 100, H - m.b, m.t);
+    data.forEach(([c, v, n], i) => {
+      const bx = m.l + i * step + 7;
+      tip(el("path", { d: vbar(bx, y(v), bw, y(0) - y(v)), class: (i >= 4 ? "fill-accent" : "fill-base") + " grow-y", style: `--i:${i}` }, svg),
+        `${c} min: ${v} % de ${fmt(n)} viajes`);
+      text(svg, bx + bw / 2, y(v) - 12, v + " %", i >= 4 ? "val-strong" : "val", "middle");
+      text(svg, bx + bw / 2, H - m.b + 30, c, "tick", "middle");
+    });
+    el("line", { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), class: "axis" }, svg);
+    text(svg, W / 2, H - 6, "duración del viaje, en minutos", "tick", "middle");
+    const tx = m.l + 4 * step;
+    el("line", { x1: tx, x2: tx, y1: 10, y2: y(0), class: "event dashed" }, svg);
+    text(svg, tx + 12, 26, "viaje apto: 20 minutos o más", "anno");
+  }
+
+  // Curva de aprendizaje del LightGBM (README, sección "¿Qué limita el desempeño?")
+  function chartLearn(svg) {
+    const W = 520, H = 380, m = { l: 64, r: 30, t: 30, b: 64 };
+    const pts = [[158, .742], [317, .771], [477, .788], [635, .800]];
+    const x = lin(Math.log2(158), Math.log2(635), m.l + 20, W - m.r - 20), y = lin(.72, .82, H - m.b, m.t);
+    for (const t of [.72, .76, .80]) {
+      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t > .72 ? "grid" : "axis" }, svg);
+      text(svg, m.l - 12, y(t) + 6, fmt(t, 2), "tick", "end");
+    }
+    pts.forEach(([v]) => text(svg, x(Math.log2(v)), H - m.b + 30, fmt(v), "tick", "middle"));
+    text(svg, (m.l + W - m.r) / 2, H - 6, "vehículos de entrenamiento", "tick", "middle");
+    el("path", { d: "M" + pts.map(([v, a]) => x(Math.log2(v)) + "," + y(a)).join("L"), class: "line accent draw", pathLength: 1 }, svg);
+    pts.forEach(([v, a]) => {
+      tip(el("circle", { cx: x(Math.log2(v)), cy: y(a), r: 7, class: "dot accent" }, svg), `${fmt(v)} vehículos: AUC ${fmt(a, 3)}`);
+      text(svg, x(Math.log2(v)), y(a) - 18, fmt(a, 3), "val", "middle");
+    });
+  }
+
+  // Modelo económico del informe (tabla 14): 50.000 vehículos, 0,05 eventos por vehículo y año,
+  // USD 1.800 por evento, USD 200 por acción preventiva y USD 3 por notificación.
+  function chartMoney(svg) {
+    const W = 860, H = 420, m = { l: 64, r: 200, t: 24, b: 64 };
+    const ours = f => (2232 * 1800 * f - 32554 * 3 - 2232 * 200) / 1e6;
+    const ecu = f => (1384 * 1800 * f - 31400 * 3 - 1384 * 200) / 1e6;
+    const x = lin(20, 80, m.l, W - m.r), y = lin(0, 3, H - m.b, m.t);
+    for (const t of [0, 1, 2, 3]) {
+      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t ? "grid" : "axis" }, svg);
+      text(svg, m.l - 12, y(t) + 6, fmt(t, 1), "tick", "end");
+    }
+    for (const t of [20, 40, 60, 80]) text(svg, x(t), H - m.b + 30, t + " %", "tick", "middle");
+    text(svg, (m.l + W - m.r) / 2, H - 6, "eventos evitados cuando la alerta llega a tiempo", "tick", "middle");
+    const fs = [20, 80];
+    el("path", { d: `M${x(20)},${y(ours(.2))}L${x(80)},${y(ours(.8))}L${x(80)},${y(ecu(.8))}L${x(20)},${y(ecu(.2))}Z`, class: "gap" }, svg);
+    el("path", { d: "M" + fs.map(f => x(f) + "," + y(ecu(f / 100))).join("L"), class: "line base draw", pathLength: 1 }, svg);
+    el("path", { d: "M" + fs.map(f => x(f) + "," + y(ours(f / 100))).join("L"), class: "line accent draw", pathLength: 1 }, svg);
+    text(svg, x(80) + 14, y(ours(.8)) + 6, "DPF Health Copilot", "val");
+    text(svg, x(80) + 14, y(ecu(.8)) + 6, "Advertencia actual", "val");
+    el("line", { x1: x(60), x2: x(60), y1: y(ours(.6)), y2: y(ecu(.6)), class: "whisker" }, svg);
+    tip(el("circle", { cx: x(60), cy: y(ours(.6)), r: 7, class: "dot accent" }, svg), "60 %: USD 1,87 M con DPF Health Copilot");
+    tip(el("circle", { cx: x(60), cy: y(ecu(.6)), r: 7, class: "dot base" }, svg), "60 %: USD 1,12 M con la advertencia actual");
+    text(svg, x(60) + 16, (y(ours(.67)) + y(ecu(.67))) / 2 + 9, "+USD 0,74 M", "anno-accent").setAttribute("style", "font-size:24px");
+  }
+
+  chartSignal(document.getElementById("c-signal"));
+  chartResult(document.getElementById("c-result"));
+  chartVehicle(document.getElementById("c-vehicle"));
+  chartRegen(document.getElementById("c-regen"));
+  chartLearn(document.getElementById("c-learn"));
+  chartMoney(document.getElementById("c-money"));
+
+  // Navegación
+  const stage = document.getElementById("stage");
+  const slides = [...document.querySelectorAll(".slide")];
+  const counter = document.getElementById("counter");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  slides.forEach(s => s.querySelectorAll("[data-r]").forEach((e, i) => e.style.setProperty("--i", i)));
+  let cur = 0;
+
+  const fit = () => {
+    const s = Math.min(innerWidth / 1600, innerHeight / 900);
+    stage.style.setProperty("--s", s);
+  };
+  const countUp = slide => slide.querySelectorAll("[data-count]").forEach(n => {
+    const to = +n.dataset.count;
+    if (reduce.matches) { n.textContent = to; return; }
+    const t0 = performance.now(), dur = 1100;
+    const step = t => {
+      const k = Math.min(1, (t - t0) / dur);
+      n.textContent = Math.round(to * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+  const go = n => {
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    slides[cur].classList.remove("is-active");
+    cur = n;
+    slides[cur].classList.add("is-active");
+    counter.textContent = `${cur + 1} / ${slides.length}`;
+    stage.style.setProperty("--p", (cur + 1) / slides.length);
+    history.replaceState(null, "", "#" + (cur + 1));
+    countUp(slides[cur]);
+  };
+
+  addEventListener("keydown", e => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const k = e.key;
+    if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(k)) go(cur + 1);
+    else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(k)) go(cur - 1);
+    else if (k === "Home") go(0);
+    else if (k === "End") go(slides.length - 1);
+    else if (k === "f" || k === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+    else if (k === "t" || k === "T") {
+      const dark = getComputedStyle(document.documentElement).colorScheme === "dark";
+      document.documentElement.dataset.theme = dark ? "light" : "dark";
+    } else return;
+    e.preventDefault();
+  });
+  // Click o toque: tercio izquierdo retrocede, el resto avanza. Deslizar también navega.
+  let x0 = null;
+  addEventListener("pointerdown", e => { x0 = e.clientX; });
+  addEventListener("pointerup", e => {
+    if (x0 === null) return;
+    const dx = e.clientX - x0;
+    x0 = null;
+    if (getSelection().toString()) return;
+    if (Math.abs(dx) > 50) go(cur + (dx < 0 ? 1 : -1));
+    else go(cur + (e.clientX < innerWidth / 3 ? -1 : 1));
+  });
+  addEventListener("resize", fit);
+  fit();
+  go((parseInt(location.hash.slice(1), 10) || 1) - 1);
+})();
+</script>
+</body>
+</html>
