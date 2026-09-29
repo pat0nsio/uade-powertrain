@@ -110,15 +110,10 @@ body {
 .finish span { position: absolute; bottom: 28px; right: -4px; font-size: 15px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .truck { position: absolute; bottom: 6px; left: calc(112px + var(--p, 0) * (1600px - 224px));
   transform: translateX(-100%); transition: left .8s cubic-bezier(.5, 0, .2, 1); }
-.truck svg { display: block; overflow: visible; }
-.truck .body { fill: var(--accent); }
-.truck .window { fill: var(--bg); }
-.truck .tire { fill: var(--ink); }
-.truck .hub { fill: var(--bg); }
-.truck .spoke { stroke: var(--bg); stroke-width: 1.6; fill: none; }
+.truck img { display: block; width: 116px; height: auto;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .22)); }
 @media (prefers-reduced-motion: no-preference) {
   .journey.driving .truck { animation: bob .8s ease-in-out; }
-  .journey.driving .wheel { animation: roll .8s linear; transform-box: fill-box; transform-origin: center; }
 }
 @media (prefers-reduced-motion: reduce) {
   .truck, .jfill { transition: none; }
@@ -128,7 +123,6 @@ body {
   30% { transform: translateX(-100%) translateY(-2.5px); }
   65% { transform: translateX(-100%) translateY(1px); }
 }
-@keyframes roll { to { transform: rotate(360deg); } }
 
 /* Tipografía */
 .head {
@@ -597,12 +591,7 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
     <div class="jfill"></div>
     <div class="finish"><span>evento</span></div>
     <div class="truck">
-      <svg viewBox="0 0 120 60" width="90" role="img" aria-label="Ford Ranger">
-        <path class="body" d="M8,44 L8,26 L56,26 L58,12 L84,12 L92,26 L110,26 L114,32 L114,44 Z"/>
-        <polygon class="window" points="61,15 82,15 87,24 61,24"/>
-        <g class="wheel"><circle cx="30" cy="46" r="11" class="tire"/><circle cx="30" cy="46" r="4.5" class="hub"/><path class="spoke" d="M30,38 V54 M22,46 H38"/></g>
-        <g class="wheel"><circle cx="94" cy="46" r="11" class="tire"/><circle cx="94" cy="46" r="4.5" class="hub"/><path class="spoke" d="M94,38 V54 M86,46 H102"/></g>
-      </svg>
+      <img src="ranger.png" alt="Ford Ranger" width="116">
     </div>
   </div>
 </main>
