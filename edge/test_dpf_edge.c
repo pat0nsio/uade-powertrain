@@ -1,5 +1,4 @@
-/* Arnés de paridad con Python: lee días de stdin (CSV: vehículo + 17 valores de dpf_day_t en orden) y escribe
-   "vehículo,puntaje,alerta" por día. Reinicia el estado al cambiar de vehículo. Lo corre `python -m src.edge export`. */
+/* Arnés de paridad: stdin "vehículo,17 valores" -> stdout "vehículo,puntaje,alerta". */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

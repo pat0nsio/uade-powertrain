@@ -1,5 +1,4 @@
-/* Implementación de la alerta a bordo. Replica src/edge.py (ema_features + LightGBM); el test
-   `python -m src.edge export` compara ambos día por día. */
+/* Réplica de src/edge.py (ema_features + LightGBM). */
 #include <math.h>
 
 #include "dpf_edge.h"

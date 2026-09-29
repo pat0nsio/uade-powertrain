@@ -1,20 +1,4 @@
-"""Diagnóstico: ¿el techo de desempeño lo ponen los datos?
-
-  learning  Curva de aprendizaje: LightGBM y la red con 25/50/75/100 % de los vehículos de train, submuestreados por
-            vehículo (estratificado por fallado) dentro de cada fold; AUC/AP OOF sobre los folds de validación completos.
-  temporal  Descompone la caída del holdout por vehículo (~0.78) a la validación temporal (~0.64), con el LightGBM y los
-            vehículos del holdout: período de entrenamiento (todo / etiquetas conocidas en T) x período evaluado
-            (< T / >= T), más dos controles de tamaño con datos de todo el período: (a) mismas filas y positivos que
-            "antes de T" y (b) además la misma cantidad de vehículos con evento (lo que importa según la curva).
-  retrain   Despliegue simulado desde T con reentrenos: estático, trimestral y mensual (etiquetas conocidas a cada fecha).
-  drift     Origen de la deriva: validación adversarial (¿se distinguen los días antes/después de T?), ablación de las
-            features que más cambian y evolución temporal de eventos y tasas.
-  ecu       Política combinada (alerta = modelo O advertencia ECU) contra el modelo solo, en holdout y temporal.
-  recency   Pesos exp(-antigüedad / tau) en el entrenamiento del despliegue en T; tau elegido antes de T.
-
-Salidas: data/learning_curve.json, data/temporal_decomp.json, data/retrain.json, data/drift.json,
-data/ecu_combo.json, data/recency.json
-"""
+"""¿Qué limita el desempeño? python -m src.diagnose [temporal|learning|retrain|drift|ecu|recency]"""
 import json
 import sys
 
@@ -282,8 +266,7 @@ def _policies(p, ref, ecu_col="ecu"):
 
 
 def _compare(cal, ev, ref, label, cal_mask=None, ev_mask=None):
-    """Elige el punto de operación de cada política en `cal` (falsas alarmas <= ECU) y la evalúa en `ev`. Con máscaras,
-    las alertas se calculan sobre el frame entero (el umbral relativo mira a toda la flota) y después se recortan."""
+    """Punto de operación elegido en `cal` (falsas alarmas <= ECU), evaluado en `ev`."""
     from src.evaluate import leadtime
     A_cal, A_ev = _policies(cal, ref), (_policies(ev, ref) if ev is not cal else None)
     A_ev = A_ev or A_cal
@@ -333,8 +316,7 @@ def _compare(cal, ev, ref, label, cal_mask=None, ev_mask=None):
 
 
 def ecu_combo():
-    """Alerta = modelo O advertencia ECU. Holdout por vehículo (stack, punto elegido en OOF) y validación temporal
-    (LightGBM, punto elegido en la calibración [T-90, T), como src.temporal)."""
+    """Alerta = modelo O advertencia ECU, en holdout y en validación temporal."""
     from src.evaluate import smooth
     from src.temporal import CAL, fit
     res = {}
@@ -375,8 +357,7 @@ def ecu_combo():
 
 # ---------------- 6. peso a los datos recientes ----------------
 def recency(taus=(None, 60, 120, 240, 480), sel_window=180):
-    """Despliegue en T con pesos exp(-antigüedad / tau) en el entrenamiento. tau se elige sin mirar el período >= T:
-    modelo con lo conocido en T - sel_window, evaluado en [T - sel_window, T) con las etiquetas conocidas en T."""
+    """Pesos exp(-antigüedad / tau) al entrenar en T; tau elegido en [T - sel_window, T)."""
     f = load()
     cols = feature_cols(f)
     every = np.ones(len(f), bool)

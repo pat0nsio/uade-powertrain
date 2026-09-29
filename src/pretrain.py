@@ -1,14 +1,4 @@
-"""Pre-entrenamiento auto-supervisado del codificador secuencial (capa de entrada + GRU de SeqNet).
-
-Datos sin etiqueta: el calendario de los vehículos de entrenamiento del fold + los 297 fallados que solo están en v1
-(data/daily_v1.parquet, generado con `python -m src.data v1`). Nunca ve vehículos fuera del train que recibe (holdout,
-fold de validación) ni días posteriores al último día de entrenamiento (validación temporal).
-Objetivos:
-  * reconstrucción de días enmascarados (15-30 % de la ventana; la GRU es causal -> reconstruye cada día desde el pasado)
-  * suma de la semana siguiente de km, regeneraciones y hollín, desde el último estado de la ventana
-fit_gru lo llama cuando ARCH["pre"] y copia los pesos a la red antes del ajuste fino; el del modelo final se guarda en
-models/encoder.pt.
-"""
+"""Pre-entrenamiento auto-supervisado del codificador de SeqNet (días enmascarados + semana siguiente)."""
 import numpy as np
 import pandas as pd
 import torch

@@ -1,10 +1,4 @@
-/* DPF Health Copilot — alerta a bordo (ECU / módulo telemático).
- *
- * Memoria fija: el estado son medias móviles exponenciales (EMA) de 17 series diarias con 2 vidas medias, más dos
- * contadores desde la última regeneración. Sin memoria dinámica, sin recursión, C99.
- * El modelo (árboles, umbral, constantes de las EMA) está en dpf_edge_model.h, generado por
- * `python -m src.edge export` y separado del código como un set de calibración.
- */
+/* Alerta a bordo: EMA de memoria fija + árboles de dpf_edge_model.h (python -m src.edge export). C99. */
 #ifndef DPF_EDGE_H
 #define DPF_EDGE_H
 
@@ -22,8 +16,7 @@ typedef struct {
     double mins;             /* minutos de manejo */
     double n_regen;          /* regeneraciones completas (caída de hollín >= 20 puntos) */
     double n_regen_stopped;  /* regeneraciones interrumpidas */
-    /* viajes: < 5 km, < 2 km, urbanos (< 25 km/h), sin llegar a 70 °C, arranque en frío (< 30 °C),
-       terminados durante una limpieza, ralentí (> 5 min y < 1 km) */
+    /* viajes: <5 km, <2 km, urbanos, fríos, arranque frío, fin en limpieza, ralentí */
     double trip_num[7];
     /* mensajes: DPF sobre el límite (at limit / over limit / overloaded), lleno, sobrecargado; suma del % de hollín */
     double msg_num[4];
@@ -39,8 +32,7 @@ typedef struct {
 
 void dpf_reset(dpf_state_t *s);
 
-/* Una vez por día calendario, también los días sin uso. Devuelve 1 si el vehículo entra en alerta.
-   raw_score (opcional) recibe el puntaje del modelo en escala logit. */
+/* Una vez por día calendario (también sin uso); 1 = alerta. raw_score opcional (logit). */
 int dpf_update(dpf_state_t *s, const dpf_day_t *d, double *raw_score);
 
 void dpf_features(const dpf_state_t *s, double x[DPF_N_FEATURES]);

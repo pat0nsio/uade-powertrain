@@ -1,9 +1,4 @@
-"""Features de ventana móvil (7/30/90 días, solo pasado) + etiquetas de tiempo-al-evento.
-
-Salidas:
-  data/calendar.parquet  vehículo x día calendario (incluye días sin uso) -> entrada de la red secuencial
-  data/features.parquet  una fila por vehículo-día activo (punto de predicción) con features + labels
-"""
+"""Features de ventana (solo pasado) + etiquetas -> data/calendar.parquet y data/features.parquet."""
 import numpy as np
 import pandas as pd
 

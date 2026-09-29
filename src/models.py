@@ -1,15 +1,4 @@
-"""Ensamble de 4 enfoques + stacking, con split por vehículo.
-
-  1. LightGBM (features de ventana)          -> p(evento en H días), H = 30/60/90
-  2. Random Survival Forest (landmark)        -> curva de supervivencia, RUL
-  3. GRU con atención (PyTorch)               -> secuencia diaria (ARCH) -> p(H) [+ RUL con la cabeza de riesgo]
-  4. Autoencoder entrenado solo con sanos     -> error de reconstrucción = Health Index
-  5. Stacking: regresión logística por horizonte sobre las predicciones OOF
-
-Protocolo: 20% de vehículos en holdout (nunca vistos). Sobre el 80% restante, 5 folds agrupados por vehículo
-producen predicciones OOF (entrenan el stacker); el holdout recibe el promedio de los 5 modelos.
-Salida: data/preds.parquet, models/*.
-"""
+"""Ensamble LightGBM + RSF + GRU + autoencoder con stacking; 20 % de vehículos en holdout, 5 folds OOF."""
 import json
 from pathlib import Path
 
@@ -96,10 +85,7 @@ def pred_rsf(m, X):
 # ---------------- 3. Red secuencial: GRU con atención (+ features tabulares, + cabeza de riesgo discreto) ----------------
 DAILY = SUMS + TRIP_W + MSG_W + MAXS + MINS
 WEEKS = 26  # cabeza de riesgo discreto: hazard semanal hasta 26 semanas
-# Arquitectura. Se elige con `python -m src.models nn` por AUC/AP OOF, nunca con el holdout.
-#   seq: días de historia · tab: + features de ingeniería del día y embeddings de Engine/ModelSeries/country
-#   head: "bce" (una salida por horizonte) o "hazard" (hazard semanal con censura -> P(<=H) coherentes y RUL)
-#   pre: pre-entrenamiento auto-supervisado del codificador (src/pretrain.py) antes del ajuste fino
+# elegida con `python -m src.models nn` (OOF); head: "bce" o "hazard" semanal con censura
 ARCH = dict(seq=180, tab=True, head="hazard", pre=False)
 F = torch.nn.functional
 
@@ -218,8 +204,7 @@ def _ap(y, p, m):
 
 
 def fit_gru(seq, f, rows):
-    """Ensamble de G["seeds"] redes. Cada una para temprano por AP (promedio de horizontes) sobre ~15 % de los vehículos
-    del train (estratificado por fallado), separado una sola vez: el mismo para todas las semillas y para el escalado."""
+    """Ensamble de G["seeds"] redes con parada temprana por AP en ~15 % de los vehículos del train."""
     Y = f[[f"y{h}" for h in HORIZONS]].values.astype("float32")
     M = f[[f"m{h}" for h in HORIZONS]].values.astype("float32")
     hz = seq.arch["head"] == "hazard"
@@ -281,8 +266,7 @@ def fit_gru(seq, f, rows):
 
 @torch.no_grad()
 def pred_gru(nets, seq, rows, return_att=False):
-    """Promedio del ensamble: columnas P(<=H) por horizonte + RUL en días (NaN con la cabeza "bce").
-    Devuelve (media, desvío entre semillas[, atención media])."""
+    """(media, desvío entre semillas[, atención]) de P(<=H) por horizonte + RUL."""
     ps, atts = [], []
     for net in nets:
         net.eval()
@@ -522,9 +506,7 @@ def tune(h=90):
 
 
 def nn_cv(tag, **arch):
-    """Solo la red: 5 folds + holdout -> data/nn_{tag}.parquet. Reporta AUC OOF con IC por vehículo y el peso de la red
-    en el stacking, reajustando el stacker sobre las predicciones OOF de data/preds.parquet (solo cambia la columna de
-    la red). El holdout se imprime como referencia; las decisiones se toman con OOF."""
+    """Solo la red: AUC OOF con IC y peso en el stacking -> data/nn_{tag}.parquet (holdout solo de referencia)."""
     from sklearn.metrics import average_precision_score, roc_auc_score
     from src.evaluate import cluster_ci
     arch = {**ARCH, **arch}

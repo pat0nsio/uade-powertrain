@@ -1,7 +1,4 @@
-"""Evaluación en holdout de vehículos nunca vistos + explicabilidad global + perfiles de conductor.
-
-Salidas: data/metrics.json, data/shap_global.parquet, data/profiles.parquet, data/leadtime.parquet
-"""
+"""Evaluación en holdout, política de alerta, SHAP y perfiles -> data/metrics.json y otros."""
 import json
 
 import lightgbm as lgb
@@ -81,8 +78,7 @@ REL_WINDOW = 30  # días de historia de la flota para el umbral relativo
 
 
 def fleet_threshold(p, score, pct, window=REL_WINDOW):
-    """Umbral relativo causal: cuantil (1 - pct) del riesgo de TODA la flota en los últimos `window` días (hasta hoy).
-    No usa etiquetas -> se puede calcular en producción, y se ajusta solo si la flota entera se desplaza."""
+    """Cuantil (1 - pct) del riesgo de toda la flota en los últimos `window` días (causal, sin etiquetas)."""
     d = p["day"].values.astype("datetime64[D]")
     order = np.argsort(d, kind="stable")
     ds, ss = d[order], p[score].values[order]

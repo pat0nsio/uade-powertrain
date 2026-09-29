@@ -1,16 +1,4 @@
-"""Configuración de recursos por máquina. Se sobreescribe en config.local.json (no versionado), sección por sección:
-
-{
-  "duckdb": {"memory_limit": "8GB", "threads": 8},
-  "torch":  {"device": "cuda", "amp": true, "threads": 8},
-  "gru":    {"seeds": 5, "max_epochs": 40, "patience": 3, "val_frac": 0.15, "batch": 512, "pred_batch": 4096,
-             "pre_epochs": 5},
-  "env":    {"HSA_OVERRIDE_GFX_VERSION": "10.3.0"}
-}
-
-torch.device: "auto" (GPU si hay), "cpu" o "cuda" (NVIDIA o AMD/ROCm; falla si no hay GPU).
-env: variables de entorno que se fijan antes de inicializar la GPU (p. ej. ROCm en Radeon no listadas oficialmente).
-"""
+"""Recursos por máquina: DEFAULTS pisados sección por sección por config.local.json (ver config.local.ejemplo.json)."""
 import json
 import os
 from pathlib import Path

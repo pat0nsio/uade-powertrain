@@ -1,15 +1,4 @@
-"""Regla a bordo: ¿una regla chica con memoria fija mejora la advertencia actual de la ECU?
-
-A bordo (ECU o módulo telemático) no hay 90 días de historia ni riesgo de la flota, así que:
-  * señales = medias móviles exponenciales (EMA) diarias con vida media de 7 y 30 días; las proporciones se guardan
-    como numerador y denominador (2 números por señal), más contadores desde la última regeneración
-  * política = umbral fijo (el relativo necesita a la flota)
-Modelos: árboles de profundidad 2/3/4 (la regla) y un LightGBM con las mismas señales (cuánto se pierde por usar EMA
-en lugar de ventanas, sin limitar la complejidad). Protocolo del proyecto: umbral elegido con OOF (falsas alarmas
-<= ECU), evaluado en holdout; y validación temporal con el umbral elegido en [T-90, T).
-
-`python -m src.edge` -> data/edge.json, data/edge.log
-"""
+"""Alerta a bordo con memoria fija (EMA + umbral fijo) vs ECU; `export` genera el C y verifica paridad."""
 import json
 
 import lightgbm as lgb
@@ -93,8 +82,7 @@ def models():
 
 
 def size_kb(m):
-    """Memoria aproximada del modelo a bordo: por nodo interno índice de señal (1 B) + umbral float32 (4 B) + 2 hijos
-    (2 x 2 B); por hoja un float32. Los árboles de sklearn se cuentan igual."""
+    """KB a bordo: 9 B por nodo interno, 4 B por hoja."""
     if isinstance(m, DecisionTreeClassifier):
         n_leaf = m.get_n_leaves()
         return ((m.tree_.node_count - n_leaf) * 9 + n_leaf * 4) / 1024
@@ -116,17 +104,13 @@ FPR_GRID = (0.005, 0.01, 0.02, 0.03, 0.05, 0.07, 0.10, 0.15, 0.20, 0.30)  # % de
 
 
 def not_worse(c, ecu):
-    """Ni más episodios de falsa alarma ni más días sanos en alerta que la ECU (los episodios solos se pueden
-    'ganar' con una alerta casi siempre encendida: cuenta como un único episodio)."""
+    """Ni más episodios de falsa alarma ni más días sanos en alerta que la ECU."""
     return (c["false_alarm_episodes_per_vehicle_year"] <= ecu["false_alarm_episodes_per_vehicle_year"]
             and c["healthy_day_alarm_rate"] <= ecu["healthy_day_alarm_rate"])
 
 
 def operate(cal, s_cal, ref_cal, ev, s_ev, ref_ev, ecu_cal, ecu_ev):
-    """Punto de operación = % de días sanos en alerta, elegido en `cal` (el mayor que no supera las falsas alarmas de
-    la ECU) y traducido a umbral con los scores del modelo desplegado sobre días sanos de referencia (`ref_ev`): así
-    el umbral no depende de la escala de cada modelo (las hojas de un árbol cambian al reentrenar).
-    También reporta, a posteriori, la detección a igual tasa de falsas alarmas que la ECU en el período evaluado."""
+    """% de días sanos en alerta elegido en `cal`, traducido a umbral con `ref_ev`; más detección a igual FA."""
     ref_cal, ref_ev = pd.Series(ref_cal), pd.Series(ref_ev)
     cv = {x: leadtime(cal.assign(a=s_cal), "a", ref_cal.quantile(1 - x))[1] for x in FPR_GRID}
     ok = [x for x, c in cv.items() if not_worse(c, ecu_cal)]
@@ -196,8 +180,7 @@ def holdout(f, cols):
 
 
 def temporal(f, cols):
-    """Despliegue en T: entrena con lo conocido en T. El % de días sanos en alerta se elige en [T-90, T) con un modelo
-    entrenado en T-90; el umbral del modelo desplegado se fija con sus scores en los días sanos de ese mismo período."""
+    """Despliegue en T; % de días sanos en alerta elegido en [T-90, T) con un modelo entrenado en T-90."""
     res = {}
     t0 = T - pd.Timedelta(days=CAL)
     y = f[f"y{H}"].values
@@ -315,8 +298,7 @@ def c_model(booster, thr_raw):
 
 
 def export(n_test=40):
-    """Entrena el modelo compacto con todos los vehículos de train, fija el umbral con el % de días sanos elegido en
-    OOF, genera edge/dpf_edge_model.h, compila el runtime C y verifica paridad con Python día por día."""
+    """Entrena el modelo compacto, genera edge/dpf_edge_model.h y verifica paridad C vs Python."""
     import subprocess
     f, cols = load()
     R = json.load(open("data/edge.json"))

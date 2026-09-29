@@ -1,12 +1,4 @@
-"""Copiloto del conductor: qué cambiar (receta mínima) y cuándo hacerlo (ventana de regeneración).
-
-  simulate        aplica un cambio de hábito a las features de un día (lo usa el simulador what-if del dashboard)
-  min_recipe      el cambio de menor esfuerzo que saca al vehículo del top de riesgo de la flota, según el GBM monótono
-  regen_windows   en qué día y franja horaria el conductor suele hacer un trayecto apto para completar una regeneración
-  completion      evidencia: % de regeneraciones en curso que terminan dentro del viaje, según la duración del viaje
-
-`python -m src.copilot` corre los chequeos y un resumen sobre el holdout.
-"""
+"""Copiloto: receta mínima de cambio de hábito y ventana habitual para regenerar."""
 import itertools
 
 import numpy as np
@@ -22,8 +14,7 @@ COST = {"warm": 1, "short_cut_25": 1, "long_trip": 2}
 
 
 def simulate(X, long_trips=0, short_cut=0, warm=False):
-    """Features del día con el hábito cambiado. Solo toca features con restricción monótona en el GBM what-if:
-    los viajes cortos eliminados se asumen cortos/urbanos/en frío; los de ruta suman LONG_KM a LONG_KMH."""
+    """Features del día con el hábito cambiado (solo las que tienen restricción monótona)."""
     Xs = X.copy()
     for wd in (7, 30, 90):
         n = Xs[f"w{wd}_n_trips"] * wd
@@ -46,8 +37,7 @@ def simulate(X, long_trips=0, short_cut=0, warm=False):
 
 
 def min_recipe(model, X, target):
-    """Busca en la grilla del simulador la combinación de menor esfuerzo con riesgo <= target (probabilidad del GBM
-    what-if). Si ninguna alcanza, devuelve la de mayor reducción con reaches=False."""
+    """Combinación de menor esfuerzo con riesgo <= target; si ninguna alcanza, la de mayor reducción."""
     p0 = float(model.predict(X)[0])
     opts = []
     for lt, sc, w in itertools.product(range(4), (0, 25, 50, 75, 100), (False, True)):
@@ -80,9 +70,7 @@ def recipe_text(r):
 
 
 def regen_windows(trips, day, weeks=WEEKS, min_mins=MIN_MINS):
-    """Patrón semanal de un vehículo con los viajes de las `weeks` semanas previas a `day` (solo pasado).
-    Devuelve (P, N): P[día, franja] = fracción de semanas con al menos un trayecto apto (>= min_mins) en esa franja;
-    N[día, franja] = ídem con viajes 'casi aptos' (10 a min_mins min), que alcanzaría con estirar."""
+    """(P, N)[día, franja]: fracción de semanas con un viaje apto / casi apto (10 a min_mins) antes de `day`."""
     end = pd.Timestamp(day) + pd.Timedelta(days=1)  # incluye el día de análisis completo
     start = end - pd.Timedelta(weeks=weeks)
     t = trips[(trips["lts"] >= start) & (trips["lts"] < end)]
@@ -153,8 +141,7 @@ def _check():
 
 
 def whatif_target(f, pred, rel):
-    """Objetivo de la receta para cada fila: cuantil (1 - rel) del riesgo what-if de toda la flota en los últimos
-    30 días, la misma regla causal que la política de alerta relativa (que se aplica sobre el ensamble suavizado)."""
+    """Objetivo de la receta: el mismo umbral relativo de flota que la alerta, en escala what-if."""
     from src.evaluate import fleet_threshold
     return fleet_threshold(pd.DataFrame({"day": f["day"].values, "pw": pred}), "pw", rel)
 

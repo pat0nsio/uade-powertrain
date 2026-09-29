@@ -1,13 +1,4 @@
-"""Validación temporal: simula poner el sistema en producción en la fecha T.
-
-Entrenamiento: solo filas cuya etiqueta ya se conocía en T (día + H < T, o evento ocurrido antes de T).
-Evaluación: filas con día >= T. Dos escenarios:
-  * "vehículos nuevos": se entrena con vehículos de train y se evalúa en el holdout (vehículo + tiempo)
-  * "misma flota":      se entrena y evalúa con todos los vehículos (la flota ya monitoreada, en el futuro)
-El umbral de alerta se fija con un split temporal interno (sanos en [T-90, T)), sin mirar el período evaluado.
-Se evalúa el LightGBM (componente principal del ensamble). Salida: data/temporal.json
-`python -m src.temporal nn <tag> [seq=.. tab=.. head=.. pre=..]` evalúa la red neuronal (AUC) -> data/nn_temporal.jsonl
-"""
+"""Validación temporal: entrena con lo conocido en T y evalúa después -> data/temporal.json."""
 import json
 
 import lightgbm as lgb
@@ -45,8 +36,7 @@ def scenario(f, fold, train_veh, test_veh, cols):
                         "base_rate": f.loc[te, f"y{h}"].mean(), "n_rows": int(te.sum()),
                         "n_vehicles": int(f.loc[te, "v"].nunique())}
 
-    # alertas H=90 vs ECU en el período futuro. Los puntos de operación (umbral fijo y relativo) se eligen en el
-    # período de calibración [T-90, T) con un modelo entrenado solo con lo conocido en T-90.
+    # punto de operación elegido en [T-90, T) con un modelo entrenado en T-90
     t0 = T - pd.Timedelta(days=CAL)
     inner = fit(f, train_veh & known_at(f, 90, t0), 90, cols)
     cal = train_veh & (f["day"] >= t0) & (f["day"] < T)
@@ -82,8 +72,7 @@ def scenario(f, fold, train_veh, test_veh, cols):
 
 
 def nn_scenario(f, cal, train_veh, test_veh, arch, save=None):
-    """La red entrenada solo con lo conocido en T: máscaras de etiqueta de known_at, eventos >= T ocultos y censura
-    recortada a T (para la cabeza de riesgo). El pre-entrenamiento, si está activo, tampoco ve días >= T."""
+    """La red entrenada solo con lo conocido en T (eventos >= T ocultos, censura recortada a T)."""
     from src.models import Seq, fit_gru, pred_gru
     g = f.copy()
     for h in HORIZONS:

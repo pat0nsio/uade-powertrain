@@ -742,7 +742,7 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
   país/cohorte (*gradient reversal*) y un modelo jerárquico viajes → días.
 - **Tamaño muestral**: 56 eventos en el holdout y 36 en el escenario temporal de vehículos nuevos ⇒ IC anchos.
 - **`country` muy influyente**: puede reflejar en parte el diseño muestral de las listas de fallados y sanos.
-- **Hora local** aproximada con UTC−4 fijo (anotado en el código con `ponytail:`); afecta solo a `sh_night` y al corte
+- **Hora local** aproximada con UTC−4 fijo; afecta solo a `sh_night` y al corte
   de día.
 - **Supuestos del simulador** (40 km a 80 km/h por viaje de ruta; los viajes eliminados se asumen cortos, urbanos y en
   frío) y **del modelo económico** (costos editables en la UI): son ilustrativos.

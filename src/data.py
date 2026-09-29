@@ -1,17 +1,4 @@
-"""Carga + limpieza + agregación diaria por vehículo.
-
-Salidas en data/:
-  static.parquet   1 fila por vehículo (label, fecha de producción, eventos)
-  daily.parquet    1 fila por vehículo-día con uso (trips + dynamic)
-  trips.parquet    1 fila por viaje limpio (hora local, km, minutos, hollín y estado del DPF)
-  quality.json     reporte de limpieza (qué se descartó y por qué)
-
-Decisiones de datos (ver EDA en README):
-  * Fallados: se usan los archivos v2 (la IdentificationDate de v1 == daysUntilSale en 76% de los casos -> inválida).
-  * Sanos: se excluye cualquier VIN que aparezca en alguna lista de fallados (v1 o v2).
-  * Fecha de producción = D0 + ProductionDay; D0 se estima como la mediana de (primer viaje - ProductionDay),
-    ya que el primer viaje (en planta) coincide con producción con dispersión < 0.5 días.
-"""
+"""Carga + limpieza + agregación diaria -> data/{static,daily,trips}.parquet y quality.json."""
 import json
 from pathlib import Path
 
@@ -31,8 +18,7 @@ DYN = {"failed": RAW / "Dynamic/DynamicInformation_Failed_SelectionVins_v2.csv",
 # Fallados que solo están en v1 (sin fecha de falla confiable): se usan únicamente en el pre-entrenamiento auto-supervisado
 TRIPS_V1 = {"failed_v1": RAW / "TripSummary/TripSummary_Failed_SelectionVins.csv"}
 DYN_V1 = {"failed_v1": RAW / "Dynamic/DynamicInformation_Failed_SelectionVins.csv"}
-# ponytail: offset fijo UTC-4 para "hora local" (flota LatAm UTC-3..-5); usar tz por país si la hora importa más
-LOCAL = "INTERVAL 4 HOUR"
+LOCAL = "INTERVAL 4 HOUR"  # hora local ≈ UTC-4 fijo
 
 
 # Estados del DPF (renombrado "Air Filter" en el dataset anonimizado)
@@ -49,8 +35,7 @@ def num(col, lo, hi):
 
 
 def build(v1_only=False):
-    """v1_only: agrega solo los fallados exclusivos de v1 -> data/daily_v1.parquet (pre-entrenamiento, sin etiquetas).
-    No escribe static/daily/quality."""
+    """v1_only: solo fallados exclusivos de v1 -> data/daily_v1.parquet (pre-entrenamiento)."""
     trips, dyn = (TRIPS_V1, DYN_V1) if v1_only else (TRIPS, DYN)
     OUT.mkdir(exist_ok=True)
     cfg = CFG["duckdb"]  # límites de recursos: src/config.py / config.local.json
@@ -140,10 +125,7 @@ def build(v1_only=False):
         f"select * from {csv(p)}" for p in dyn.values()) + ") where try_cast(DistanceBetweenRegenerations as double) < 0").fetchone()[0]
 
     # ---------- regeneraciones reconstruidas desde la señal de hollín ----------
-    # La bandera `Regenerations` deja de llegar para toda la flota (y ya venía degradándose), pero `Acumulation`
-    # sigue: una regeneración es una caída de hollín >= 20 puntos entre lecturas consecutivas (episodios a > 6 h).
-    # Validado contra la bandera antes del corte: recall 0.91, precisión 0.81, corr vehículo-mes 0.88.
-    # los desempates (lecturas con el mismo ts) hacen que el resultado no dependa de la cantidad de hilos
+    # caída de hollín >= 20 pts entre lecturas (episodios a > 6 h); la bandera Regenerations se corta
     c.execute("""create table dl as select v, ts, odo, lag(acc) over w - acc soot_drop from d
         window w as (partition by v order by ts, acc, odo, msg, reg, dbr)""")
     c.execute("""create table rg as select v, ts, case when odo - lag(odo) over w between 0 and 20000
