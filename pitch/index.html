@@ -92,30 +92,43 @@ body {
 }
 .slide.is-active { display: grid; }
 
-.progress {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 4px;
-  width: calc(var(--p, 0) * 100%);
-  background: var(--accent);
-  transition: width .5s cubic-bezier(.16, 1, .3, 1);
-}
 .counter {
   position: absolute;
+  top: 44px;
   right: 112px;
-  bottom: 36px;
   font-size: 18px;
   color: var(--muted);
 }
-.brand {
-  position: absolute;
-  left: 112px;
-  bottom: 36px;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--muted);
+
+/* El viaje: una Ford Ranger que avanza por la ruta de slide en slide */
+.journey { position: absolute; left: 0; right: 0; bottom: 26px; height: 56px; pointer-events: none; transition: opacity .4s ease; }
+.journey.hidden { opacity: 0; }
+.jroad { position: absolute; left: 112px; right: 112px; bottom: 8px; height: 2px; background: var(--rule); border-radius: 2px; }
+.jfill { position: absolute; left: 112px; bottom: 8px; height: 2px; border-radius: 2px; background: var(--accent);
+  width: calc(var(--p, 0) * (1600px - 224px)); transition: width .8s cubic-bezier(.5, 0, .2, 1); }
+.finish { position: absolute; right: 112px; bottom: 8px; width: 2px; height: 24px; background: var(--ink); }
+.finish span { position: absolute; bottom: 28px; right: -4px; font-size: 15px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.truck { position: absolute; bottom: 6px; left: calc(112px + var(--p, 0) * (1600px - 224px));
+  transform: translateX(-100%); transition: left .8s cubic-bezier(.5, 0, .2, 1); }
+.truck svg { display: block; overflow: visible; }
+.truck .body { fill: var(--accent); }
+.truck .window { fill: var(--bg); }
+.truck .tire { fill: var(--ink); }
+.truck .hub { fill: var(--bg); }
+.truck .spoke { stroke: var(--bg); stroke-width: 1.6; fill: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .journey.driving .truck { animation: bob .8s ease-in-out; }
+  .journey.driving .wheel { animation: roll .8s linear; transform-box: fill-box; transform-origin: center; }
 }
+@media (prefers-reduced-motion: reduce) {
+  .truck, .jfill { transition: none; }
+}
+@keyframes bob {
+  0%, 100% { transform: translateX(-100%) translateY(0); }
+  30% { transform: translateX(-100%) translateY(-2.5px); }
+  65% { transform: translateX(-100%) translateY(1px); }
+}
+@keyframes roll { to { transform: rotate(360deg); } }
 
 /* Tipografía */
 .head {
@@ -369,8 +382,7 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
   html, body { height: auto; overflow: visible; }
   .stage { position: static; transform: none; }
   .slide { display: grid !important; position: relative; width: 1600px; height: 900px; break-after: page; }
-  .progress, .counter { display: none; }
-  .brand { display: none; }
+  .journey, .counter { display: none; }
 }
 </style>
 </head>
@@ -578,9 +590,21 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
     </div>
   </section>
 
-  <p class="brand">DPF Health Copilot</p>
   <p class="counter" id="counter" aria-live="polite"></p>
-  <div class="progress" id="progress"></div>
+
+  <div class="journey hidden" id="journey" aria-hidden="true">
+    <div class="jroad"></div>
+    <div class="jfill"></div>
+    <div class="finish"><span>evento</span></div>
+    <div class="truck">
+      <svg viewBox="0 0 120 60" width="90" role="img" aria-label="Ford Ranger">
+        <path class="body" d="M8,44 L8,26 L56,26 L58,12 L84,12 L92,26 L110,26 L114,32 L114,44 Z"/>
+        <polygon class="window" points="61,15 82,15 87,24 61,24"/>
+        <g class="wheel"><circle cx="30" cy="46" r="11" class="tire"/><circle cx="30" cy="46" r="4.5" class="hub"/><path class="spoke" d="M30,38 V54 M22,46 H38"/></g>
+        <g class="wheel"><circle cx="94" cy="46" r="11" class="tire"/><circle cx="94" cy="46" r="4.5" class="hub"/><path class="spoke" d="M94,38 V54 M86,46 H102"/></g>
+      </svg>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -754,6 +778,8 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
   const stage = document.getElementById("stage");
   const slides = [...document.querySelectorAll(".slide")];
   const counter = document.getElementById("counter");
+  const journey = document.getElementById("journey");
+  let driveT;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   slides.forEach(s => s.querySelectorAll("[data-r]").forEach((e, i) => e.style.setProperty("--i", i)));
   let cur = 0;
@@ -780,6 +806,12 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
     slides[cur].classList.add("is-active");
     counter.textContent = `${cur + 1} / ${slides.length}`;
     stage.style.setProperty("--p", (cur + 1) / slides.length);
+    journey.classList.toggle("hidden", cur === 0);
+    if (cur !== 0 && !reduce.matches) {
+      journey.classList.add("driving");
+      clearTimeout(driveT);
+      driveT = setTimeout(() => journey.classList.remove("driving"), 820);
+    }
     history.replaceState(null, "", "#" + (cur + 1));
     countUp(slides[cur]);
   };
