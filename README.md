@@ -295,6 +295,29 @@ Cada duplicación de vehículos suma ~+0.03 de AUC y la curva todavía no se apl
 necesita más datos que el LightGBM para alcanzarlo. Recortar días manteniendo los vehículos no cuesta nada: la
 información está en la cantidad de vehículos y eventos independientes.
 
+**3. La altura de la ciudad no aporta (descartada).** Hipótesis: la altura degrada el DPF (menos O₂ → más hollín,
+regeneraciones más difíciles). Como no hay GPS ni presión barométrica, se probó la altura aproximada de la ciudad de
+venta (`SalesCity`, 96 % de los vehículos con altura asignada) como feature numérica del LightGBM. Δ AUC contra el
+modelo sin altura, IC95 de a pares por vehículo:
+
+| Horizonte | OOF (folds de train) | Temporal, vehículos nuevos | Temporal, misma flota |
+|---|---|---|---|
+| 30 d | +0.001 [−0.004, +0.006] | +0.001 [−0.021, +0.023] | −0.003 [−0.010, +0.005] |
+| 60 d | −0.000 [−0.006, +0.005] | +0.002 [−0.020, +0.024] | +0.001 [−0.007, +0.010] |
+| 90 d | −0.004 [−0.010, 0.000] | +0.000 [−0.027, +0.027] | +0.004 [−0.008, +0.015] |
+
+- Todo dentro del ruido; el AUC dentro de fallados tampoco mejora (90 d: −0.006 [−0.011, −0.001]).
+- **La telemetría ya lo refleja**: dentro de cada país la temperatura ambiente correlaciona con la altura (Spearman
+  −0.23), y en Colombia los vehículos de ciudades a más de 2000 m acumulan 24 % más hollín por km y hacen 8 % menos km entre
+  regeneraciones. Ese efecto (sea altura o uso urbano de Bogotá) el modelo ya lo ve en las features de hollín y
+  regeneración.
+- Antes de modelar, la señal cruda (fallados ~ altura + país) dependía de una sola ciudad: sin Bogotá ni Santiago el
+  efecto no se distingue de 0.
+- **La altura no reemplaza a `country`**: altura en lugar de país pierde 0.012–0.016 de AUC OOF (fuera del ruido),
+  aunque en la validación temporal la pérdida desaparece. El país lleva algo más que la altura (probablemente parte del
+  diseño muestral).
+- La ciudad de venta no es donde circula el vehículo; con GPS o presión barométrica valdría repetir la prueba.
+
 ## Limitaciones y próximos pasos
 
 - El desempeño cae hacia el futuro, mitad por falta de eventos y mitad por deriva (ver "¿Qué limita el desempeño?"):
