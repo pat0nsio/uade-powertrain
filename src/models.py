@@ -18,8 +18,9 @@ SEED, K = 0, 5
 MOD = Path("models")
 GBM_PARAMS = dict(n_estimators=500, learning_rate=0.03, num_leaves=31, min_child_samples=200, subsample=0.8,
                   subsample_freq=1, colsample_bytree=0.5, reg_lambda=1.0, verbose=-1, random_state=SEED)
-if (MOD / "gbm_params.json").exists():  # hiperparámetros elegidos por `python -m src.models tune` (solo con folds de train)
+if (MOD / "gbm_params.json").exists():  # elegidos por `python -m src.models tune` (solo con folds de train)
     GBM_PARAMS.update(json.load(open(MOD / "gbm_params.json"))["best"])
+GBM_PARAMS["device_type"] = CFG["lightgbm"]["device"]  # solo entrenamiento; la predicción de LightGBM es en CPU
 G = CFG["gru"]
 torch.manual_seed(SEED)
 if CFG["torch"]["threads"]:
@@ -82,7 +83,7 @@ def pred_rsf(m, X):
     return np.vstack(out)
 
 
-# ---------------- 3. Red secuencial: GRU con atención (+ features tabulares, + cabeza de riesgo discreto) ----------------
+# ---------------- 3. Red secuencial: GRU con atención (+ features tabulares, + riesgo discreto) ----------------
 DAILY = SUMS + TRIP_W + MSG_W + MAXS + MINS
 WEEKS = 26  # cabeza de riesgo discreto: hazard semanal hasta 26 semanas
 # elegida con `python -m src.models nn` (OOF); head: "bce" o "hazard" semanal con censura
@@ -540,7 +541,8 @@ def nn_cv(tag, **arch):
                             stack_w=meta.coef_[0].round(3).tolist(),
                             stack_holdout_auc=roc_auc_score(y[te], meta.predict_proba(meta_X(B[te], h))[:, 1]))
         r = res[f"H{h}"]
-        print(f"  H{h}: OOF AUC {r['oof_auc']:.3f} {np.round(ci, 3)} AP {r['oof_ap']:.3f} | holdout {r['holdout_auc']:.3f}"
+        print(f"  H{h}: OOF AUC {r['oof_auc']:.3f} {np.round(ci, 3)} AP {r['oof_ap']:.3f}"
+              f" | holdout {r['holdout_auc']:.3f}"
               f" | stack (gbm, gru, rsf, ae) {r['stack_w']} holdout {r['stack_holdout_auc']:.3f}", flush=True)
     with open("data/nn_results.jsonl", "a") as fh:
         fh.write(json.dumps(res, default=float) + "\n")

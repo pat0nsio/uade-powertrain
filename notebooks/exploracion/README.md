@@ -37,9 +37,10 @@ Todo lo que se genera va a `salidas/` (no versionado): `fic.duckdb`, `dataset.pa
    58 minutos de viaje; las interrumpidas ocurren en viajes de 9 a 22 minutos. Antes del evento hay menos regeneraciones
    completas (5,1 contra 6,5 por mes). Sumar estas variables subió el PR-AUC de 0,139 a 0,159–0,176.
 4. **País contra altitud.** El país mejora el modelo, pero la tasa de falla por país depende de cómo se armó la muestra
-   (Chile 46 %, Argentina 8 %). Reemplazarlo por la **altitud de la ciudad de venta con restricción monotónica** recupera
-   parte de la mejora con una variable física y aplicable a cualquier país. Con la altitud libre, parte de la mejora
-   era el modelo reconociendo ciudades.
+   (Chile 46 %, Argentina 8 %). La **altitud de la ciudad de venta con restricción monotónica** recupera parte de esa
+   mejora (+0,010 de PR-AUC, al nivel del ruido), pero funciona como sustituto de cohorte, no como efecto físico
+   demostrado: la tasa de falla por tramo de altura no es monótona y con la altitud libre el modelo reconoce ciudades.
+   Sumada a un modelo que ya tiene el país no aporta nada (README principal, "¿Qué limita el desempeño?", punto 3).
 5. **Viajes cortos.** Dentro de los fallados, los viajes cortos no aumentan antes del evento y en SHAP bajan el riesgo.
    Lo que sí cambia es el ralentí y las regeneraciones que no se completan.
 6. **Chequeo de cohorte.** Además de las falsas alarmas en sanos, conviene medir cuánto alerta el modelo en fallados

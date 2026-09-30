@@ -714,7 +714,8 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
 - Versiones fijadas en `requirements.txt` (pandas 3, DuckDB 1.5, LightGBM 4.7, scikit-survival 0.28, PyTorch 2.14,
   SHAP 0.52, Streamlit 1.64). PyTorch se instala desde el índice de CPU, CUDA o ROCm según la máquina (ver README).
 - Recursos por máquina en `config.local.json` (no versionado; valores por defecto en `src/config.py`): límites de
-  DuckDB, `device` (`auto`/`cpu`/`cuda`; ROCm se expone como `cuda`), precisión mixta, hilos, parámetros de
+  DuckDB, `torch.device` (`auto`/`cpu`/`cuda`; ROCm se expone como `cuda`; lo usan la red y los bootstraps de
+  `src.diagnose`), `lightgbm.device` (`cpu`/`gpu`, solo entrenamiento), precisión mixta, hilos, parámetros de
   entrenamiento de la red y variables de entorno (p. ej. `HSA_OVERRIDE_GFX_VERSION=10.3.0` para una Radeon RX 6650 XT).
 - Memoria: DuckDB acotado a 4 GB por defecto; el entrenamiento completo ronda 2–3 GB de RSS. Probado en 12 núcleos y
   16 GB sin GPU (pat0top) y con una Radeon RX 6650 XT de 8 GB (pcpat0; pico de 85 °C de *junction*).

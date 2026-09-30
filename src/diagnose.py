@@ -8,7 +8,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 from src.evaluate import cluster_ci
 from src.features import HORIZONS, feature_cols
-from src.models import K, fit_gbm, split
+from src.models import GBM_PARAMS, K, fit_gbm, split
 from src.temporal import T, known_at
 
 
@@ -19,15 +19,32 @@ def load():
     return f
 
 
-def paired_ci(y, a, b, v, n=300, seed=0):
-    """IC95 de AUC(b) - AUC(a) remuestreando vehículos (mismas filas para los dos modelos)."""
+def boot_auc(y, s, w):
+    """AUC ponderado (Mann-Whitney, empates = 1/2) de `s` para cada fila de pesos `w` (réplicas × filas), en DEV."""
+    import torch
+    from src.models import DEV
+    _, g = np.unique(s, return_inverse=True)  # grupos de empate en orden creciente de score
+    g, yt = torch.from_numpy(g).to(DEV), torch.from_numpy(np.asarray(y, bool)).to(DEV)
+    w = torch.as_tensor(w, dtype=torch.float64, device=DEV)
+    P = torch.zeros(len(w), int(g.max()) + 1, dtype=torch.float64, device=DEV)
+    N = torch.zeros_like(P)
+    P.index_add_(1, g[yt], w[:, yt]); N.index_add_(1, g[~yt], w[:, ~yt])
+    below = N.cumsum(1) - N
+    return (((P * (below + 0.5 * N)).sum(1)) / (P.sum(1) * N.sum(1))).cpu().numpy()
+
+
+def paired_ci(y, a, b, v, n=300, seed=0, chunk=50):
+    """IC95 de AUC(b) - AUC(a) remuestreando vehículos; cada réplica = peso por fila (veces que salió su vehículo)."""
     rng = np.random.default_rng(seed)
-    g = list(pd.Series(np.arange(len(y))).groupby(v).indices.values())
+    codes, veh = pd.factorize(np.asarray(v))
+    y = np.asarray(y, bool)
     d = []
-    for _ in range(n):
-        i = np.concatenate([g[k] for k in rng.integers(0, len(g), len(g))])
-        if 0 < y[i].sum() < len(i):
-            d.append(roc_auc_score(y[i], b[i]) - roc_auc_score(y[i], a[i]))
+    for k in range(0, n, chunk):
+        W = np.stack([np.bincount(rng.integers(0, len(veh), len(veh)), minlength=len(veh))
+                      for _ in range(min(chunk, n - k))])[:, codes]
+        ok = ((W * y).sum(1) > 0) & ((W * ~y).sum(1) > 0)
+        d.append((boot_auc(y, b, W) - boot_auc(y, a, W))[ok])
+    d = np.concatenate(d)
     return float(np.mean(d)), np.percentile(d, [2.5, 97.5]).round(4).tolist()
 
 
@@ -46,7 +63,8 @@ def learning(fracs=(0.25, 0.5, 0.75), reps_gbm=5, reps_nn=2):
         return tr[np.isin(f["v"].values[tr], keep)], len(keep), int(failed[keep].sum())
 
     def report(model, frac, rep, P, n_veh, n_fail):
-        r = {"model": model, "frac": frac, "rep": rep, "train_vehicles_per_fold": n_veh, "train_failed_per_fold": n_fail}
+        r = {"model": model, "frac": frac, "rep": rep, "train_vehicles_per_fold": n_veh,
+             "train_failed_per_fold": n_fail}
         for j, h in enumerate(HORIZONS):
             m = oof & f[f"m{h}"].values
             y, s = f[f"y{h}"].values[m], P[m, j]
@@ -141,20 +159,24 @@ def temporal_decomp(reps=3):
             for name, p in preds.items():
                 ci, _ = cluster_ci(yt, p[te], v, n=200)
                 out[f"eval_{per}"][name] = {"auc": roc_auc_score(yt, p[te]), "auc_ci95": ci}
-            out[f"eval_{per}"]["delta_antes_de_T_vs_todo"] = paired_ci(yt, preds["todo"][te], preds["antes_de_T"][te], v)
+            out[f"eval_{per}"]["delta_antes_de_T_vs_todo"] = paired_ci(yt, preds["todo"][te],
+                                                                       preds["antes_de_T"][te], v)
             out[f"eval_{per}"]["delta_submuestreado_vs_todo"] = paired_ci(yt, preds["todo"][te],
                                                                           preds["todo_submuestreado"][te], v)
             out[f"eval_{per}"]["delta_antes_de_T_vs_mismos_eventos"] = paired_ci(
                 yt, preds["todo_mismos_eventos"][te], preds["antes_de_T"][te], v)
         res[f"H{h}"] = out
         print(f"H{h}: train todo {out['train_rows']['todo']} filas / {out['train_pos']['todo']} pos / "
-              f"{len(pos_veh_all)} vehículos con evento; antes de T {n_pre} / {pos_pre} / {len(pos_veh_pre)}", flush=True)
+              f"{len(pos_veh_all)} vehículos con evento; antes de T {n_pre} / {pos_pre} / {len(pos_veh_pre)}",
+              flush=True)
         for per in ("antes_de_T", "desde_T", "todo"):
             e = out[f"eval_{per}"]
-            print(f"  evalúa {per:10s} ({e['n_vehicles']} veh, {e['n_event_vehicles']} con evento, base {e['base_rate']:.3f}): "
+            print(f"  evalúa {per:10s} ({e['n_vehicles']} veh, {e['n_event_vehicles']} con evento, "
+                  f"base {e['base_rate']:.3f}): "
                   + " | ".join(f"{n} {e[n]['auc']:.3f} {np.round(e[n]['auc_ci95'], 3)}" for n in preds)
                   + f" | Δ antes_de_T {e['delta_antes_de_T_vs_todo'][0]:+.3f} {e['delta_antes_de_T_vs_todo'][1]}"
-                  + f" | Δ submuestreado {e['delta_submuestreado_vs_todo'][0]:+.3f} {e['delta_submuestreado_vs_todo'][1]}"
+                  + f" | Δ submuestreado {e['delta_submuestreado_vs_todo'][0]:+.3f} "
+                    f"{e['delta_submuestreado_vs_todo'][1]}"
                   + f" | Δ antes_de_T vs mismos_eventos {e['delta_antes_de_T_vs_mismos_eventos'][0]:+.3f} "
                   + f"{e['delta_antes_de_T_vs_mismos_eventos'][1]}",
                   flush=True)
@@ -163,7 +185,7 @@ def temporal_decomp(reps=3):
 
 # ---------------- 3. frecuencia de reentrenamiento ----------------
 def retrain(policies=(("estatico", None), ("trimestral", "QS"), ("mensual", "MS"))):
-    """En cada fecha de reentreno t se ajusta con las etiquetas conocidas en t y se predice hasta el próximo reentreno."""
+    """En cada reentreno t se ajusta con las etiquetas conocidas en t y se predice hasta el próximo reentreno."""
     f = load()
     cols = feature_cols(f)
     end = f["day"].max() + pd.Timedelta(days=1)
@@ -195,7 +217,8 @@ def retrain(policies=(("estatico", None), ("trimestral", "QS"), ("mensual", "MS"
             res[sc][f"H{h}"] = out
             print(f"{sc} H{h}: " + " | ".join(
                 f"{n} {o['auc']:.3f} {np.round(o['auc_ci95'], 3)}"
-                + (f" Δ {o['delta_vs_estatico'][0]:+.3f} {o['delta_vs_estatico'][1]}" if "delta_vs_estatico" in o else "")
+                + (f" Δ {o['delta_vs_estatico'][0]:+.3f} {o['delta_vs_estatico'][1]}"
+                   if "delta_vs_estatico" in o else "")
                 for n, o in out.items()), flush=True)
     json.dump(res, open("data/retrain.json", "w"), indent=2, default=float)
 
@@ -212,7 +235,8 @@ def drift(top_k=(5, 10, 20)):
     oof, imp = np.zeros(len(f)), pd.Series(0.0, index=cols)
     for tr, te in GroupKFold(5).split(f, post, f["v"]):
         m = lgb.LGBMClassifier(n_estimators=300, learning_rate=0.05, num_leaves=31, subsample=0.8, subsample_freq=1,
-                               colsample_bytree=0.5, verbose=-1, random_state=0).fit(f.iloc[tr][cols], post[tr])
+                               colsample_bytree=0.5, verbose=-1, random_state=0,
+                               device_type=GBM_PARAMS["device_type"]).fit(f.iloc[tr][cols], post[tr])
         oof[te] = m.predict_proba(f.iloc[te][cols])[:, 1]
         imp += pd.Series(m.booster_.feature_importance("gain"), cols)
     imp = (imp / imp.sum()).sort_values(ascending=False)
@@ -295,7 +319,8 @@ def _compare(cal, ev, ref, label, cal_mask=None, ev_mask=None):
     # IC95 de la diferencia de detección (combinada - modelo solo) remuestreando eventos, a su punto de operación
     rng = np.random.default_rng(0)
     for kind in ("fijo", "relativo"):
-        a, b = det[f"{kind}_modelo"].astype(float), det[f"{kind}_modelo_o_ecu"].astype(float).reindex(det[f"{kind}_modelo"].index)
+        a = det[f"{kind}_modelo"].astype(float)
+        b = det[f"{kind}_modelo_o_ecu"].astype(float).reindex(a.index)
         d = [(b.values[i] - a.values[i]).mean() for i in (rng.integers(0, len(a), len(a)) for _ in range(2000))]
         res[f"{kind}_delta_deteccion"] = [float(b.mean() - a.mean()), np.percentile(d, [2.5, 97.5]).round(3).tolist()]
     print(f"== {label}  (ECU: detección {ecu_ev[1]['detection_rate']:.3f}, "
@@ -325,7 +350,8 @@ def ecu_combo():
     p["day"] = pd.to_datetime(p["day"])
     sc = pd.read_parquet("data/scores.parquet")
     sc["day"] = pd.to_datetime(sc["day"])
-    p = p.merge(sc[["v", "day", "score_s", "ecu_warning"]], on=["v", "day"]).rename(columns={"score_s": "s", "ecu_warning": "ecu"})
+    p = p.merge(sc[["v", "day", "score_s", "ecu_warning"]], on=["v", "day"]) \
+        .rename(columns={"score_s": "s", "ecu_warning": "ecu"})
     p = p.sort_values(["v", "day"]).reset_index(drop=True)
     oof, test = (p["fold"] >= 0).values, (p["fold"] == -1).values
     res["holdout"] = _compare(p, p, p.loc[oof & (p["failed"] == 0).values, "s"],
@@ -335,7 +361,8 @@ def ecu_combo():
     cols = feature_cols(f)
     every = pd.Series(True, index=f.index)
     t0 = T - pd.Timedelta(days=CAL)
-    for name, (trv, tev) in {"vehiculos_nuevos": (f["fold"] >= 0, f["fold"] == -1), "misma_flota": (every, every)}.items():
+    for name, (trv, tev) in {"vehiculos_nuevos": (f["fold"] >= 0, f["fold"] == -1),
+                             "misma_flota": (every, every)}.items():
         inner = fit(f, trv & known_at(f, 90, t0), 90, cols)
         cal = trv & (f["day"] >= t0) & (f["day"] < T)
         c = f.loc[cal, ["v", "day", "tte"]].copy()
@@ -351,7 +378,8 @@ def ecu_combo():
         q["s"] = smooth(q, "p")
         q["ecu"] = (f.loc[fut, "w7_sh_over"].fillna(0) > 0).astype(float)
         res[f"temporal_{name}"] = _compare(c.reset_index(drop=True), q.reset_index(drop=True),
-                                           c.loc[c["failed"] == 0, "s"], f"temporal, {name} (punto elegido en [T-90, T))")
+                                           c.loc[c["failed"] == 0, "s"],
+                                           f"temporal, {name} (punto elegido en [T-90, T))")
     json.dump(res, open("data/ecu_combo.json", "w"), indent=2, default=float)
 
 
@@ -365,7 +393,6 @@ def recency(taus=(None, 60, 120, 240, 480), sel_window=180):
     t_sel = T - pd.Timedelta(days=sel_window)
     day = f["day"]
     import lightgbm as lgb
-    from src.models import GBM_PARAMS
 
     def fit_w(rows, y, t, tau):
         w = None if tau is None else np.exp(-(t - day[rows]).dt.days.values / tau)
@@ -392,7 +419,8 @@ def recency(taus=(None, 60, 120, 240, 480), sel_window=180):
                 out[f"H{h}"][str(tau)] = o
             print(f"{sc} H{h}: " + " | ".join(
                 f"tau={t} sel {o['sel_auc']:.3f} fut {o['auc']:.3f}"
-                + (f" Δ {o['delta_vs_sin_peso'][0]:+.3f} {o['delta_vs_sin_peso'][1]}" if "delta_vs_sin_peso" in o else "")
+                + (f" Δ {o['delta_vs_sin_peso'][0]:+.3f} {o['delta_vs_sin_peso'][1]}"
+                   if "delta_vs_sin_peso" in o else "")
                 for t, o in out[f"H{h}"].items()), flush=True)
         best = max(taus, key=lambda t: np.mean([sel_auc[(h, t)] for h in HORIZONS]))
         out["tau_elegido"] = best

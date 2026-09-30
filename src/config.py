@@ -10,6 +10,7 @@ DEFAULTS = {
     "torch": {"device": "auto", "amp": True, "threads": None},
     "gru": {"seeds": 5, "max_epochs": 40, "patience": 3, "val_frac": 0.15, "batch": 512, "pred_batch": 4096,
             "pre_epochs": 5},
+    "lightgbm": {"device": "cpu"},  # "cpu" / "gpu" (OpenCL; en AMD requiere rocm-opencl-runtime)
     "env": {},
 }
 

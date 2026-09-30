@@ -8,7 +8,8 @@ import plotly.graph_objects as go
 import shap
 import streamlit as st
 
-from src.copilot import MIN_MINS, WEEKS, completion, min_recipe, recipe_text, regen_windows, simulate, window_text, whatif_target
+from src.copilot import (MIN_MINS, WEEKS, completion, min_recipe, recipe_text, regen_windows, simulate, window_text,
+                         whatif_target)
 from src.evaluate import group_of
 from src.features import feature_cols
 
@@ -110,10 +111,14 @@ if subset.startswith("Holdout"):
     latest = latest[latest["fold"] == -1]
 
 ADVICE = {
-    "Patrón de uso": "Predominan viajes cortos/urbanos: sugerir al cliente un trayecto de 20 min o más esta semana (con esa duración termina más del 90 % de las regeneraciones en curso).",
-    "Regeneraciones": "Regeneraciones interrumpidas o poco frecuentes: evitar apagar el motor durante la limpieza automática; agendar regeneración asistida.",
-    "Hollín / DPF": "Carga de hollín en aumento sostenido: programar regeneración forzada en concesionario antes de que el DPF llegue al límite.",
-    "Térmico / arranques en frío": "Muchos arranques en frío sin alcanzar temperatura de operación: combinar trayectos cortos en uno más largo.",
+    "Patrón de uso": "Predominan viajes cortos/urbanos: sugerir al cliente un trayecto de 20 min o más esta semana "
+                     "(con esa duración termina más del 90 % de las regeneraciones en curso).",
+    "Regeneraciones": "Regeneraciones interrumpidas o poco frecuentes: evitar apagar el motor durante la limpieza "
+                      "automática; agendar regeneración asistida.",
+    "Hollín / DPF": "Carga de hollín en aumento sostenido: programar regeneración forzada en concesionario antes de "
+                    "que el DPF llegue al límite.",
+    "Térmico / arranques en frío": "Muchos arranques en frío sin alcanzar temperatura de operación: combinar trayectos "
+                                   "cortos en uno más largo.",
     "Consumo": "Consumo por encima de su historial: revisar filtro de aire / admisión y presión de neumáticos.",
     "Aceite": "Degradación acelerada del aceite (posible dilución por post-inyección): adelantar el cambio de aceite.",
     "Clima": "Operación en clima frío: mayor tiempo de calentamiento, priorizar trayectos más largos.",
@@ -126,7 +131,8 @@ if view == "Flota":
     c = st.columns(4)
     c[0].metric("Vehículos monitoreados", f"{len(latest)}")
     c[1].metric("En alerta alta", f"{(latest['estado'] == 'Alto').sum()}")
-    c[2].metric("Anticipación mediana", f"{lc['median_lead_days']:.0f} días · {lc['median_lead_km']:,.0f} km".replace(",", "."),
+    c[2].metric("Anticipación mediana",
+                f"{lc['median_lead_days']:.0f} días · {lc['median_lead_km']:,.0f} km".replace(",", "."),
                 f"{lc['median_lead_days'] - (M['ecu_baseline']['median_lead_days'] or 0):+.0f} días vs advertencia ECU")
     c[3].metric("Eventos detectados antes de ocurrir", f"{lc['detection_rate']:.0%}")
 
@@ -140,7 +146,8 @@ if view == "Flota":
                                         "rul": "RUL (días)", "profile": "Perfil", "country": "País",
                                         "ModelSeries": "Modelo", "day": "Último dato"}),
                      hide_index=True, height=440,
-                     column_config={"Riesgo 90d": st.column_config.ProgressColumn(format="%.2f", min_value=0, max_value=1),
+                     column_config={"Riesgo 90d": st.column_config.ProgressColumn(format="%.2f", min_value=0,
+                                                                                  max_value=1),
                                     "Health Index": st.column_config.NumberColumn(format="%.0f"),
                                     "RUL (días)": st.column_config.NumberColumn(format="%.0f")})
     with r:
@@ -161,7 +168,8 @@ elif view == "Vehículo":
     f = load_features()
     cols = feature_cols(f)
     opts = latest.sort_values(["failed", "score_s"], ascending=False)["v"].tolist()
-    v = st.selectbox("Vehículo", opts, format_func=lambda x: f"{x} — {'con evento' if static.set_index('v').loc[x, 'failed'] else 'sano'}")
+    failed = static.set_index("v")["failed"]
+    v = st.selectbox("Vehículo", opts, format_func=lambda x: f"{x} — {'con evento' if failed[x] else 'sano'}")
     pv = p[p["v"] == v].sort_values("day")
     fv = f[f["v"] == v].sort_values("day")
     events = static.set_index("v").loc[v, "events"]
@@ -178,7 +186,8 @@ elif view == "Vehículo":
     c[4].metric("RUL estimado (supervivencia)", f"{cur['rul']:.0f} días")
 
     fig = go.Figure()
-    fig.add_scatter(x=pv["day"], y=pv["score_s"], name="Riesgo 90d (ensamble, media 7d)", line=dict(color=BLUE, width=2))
+    fig.add_scatter(x=pv["day"], y=pv["score_s"], name="Riesgo 90d (ensamble, media 7d)",
+                    line=dict(color=BLUE, width=2))
     fig.add_scatter(x=pv["day"], y=pv["gru90"], name="GRU", line=dict(color=AQUA, width=1), opacity=0.6)
     ecu = pv[pv["ecu_warning"] > 0]
     fig.add_scatter(x=ecu["day"], y=np.full(len(ecu), 0.02), mode="markers", name="Advertencia ECU (DPF sobre límite)",
@@ -193,8 +202,9 @@ elif view == "Vehículo":
     st.plotly_chart(style(fig, 340, title="Evolución del riesgo", yaxis_range=[0, 1]), width="stretch")
 
     # small multiples de señales físicas (sin doble eje)
-    sig = [("w7_acc_mean", "Acumulación de hollín (media 7d, %)"), ("w30_km_per_regen", "Km entre regeneraciones (30d)"),
-           ("w30_sh_short5", "Viajes < 5 km (30d)"), ("w30_fuel_per100", "Consumo (% tanque /100 km, 30d)")]
+    sig = [("w7_acc_mean", "Acumulación de hollín (media 7d, %)"),
+           ("w30_km_per_regen", "Km entre regeneraciones (30d)"), ("w30_sh_short5", "Viajes < 5 km (30d)"),
+           ("w30_fuel_per100", "Consumo (% tanque /100 km, 30d)")]
     cc = st.columns(4)
     for col, (s, t) in zip(cc, sig):
         fig = go.Figure(go.Scatter(x=fv["day"], y=fv[s], line=dict(color=BLUE, width=2), name=t))
@@ -213,7 +223,8 @@ elif view == "Vehículo":
         st.subheader("¿Por qué este riesgo? (SHAP)")
         fig = go.Figure(go.Bar(x=top["shap"], y=top["feature"], orientation="h",
                                marker_color=[RED if s > 0 else BLUE for s in top["shap"]],
-                               customdata=top["value"], hovertemplate="%{y}<br>valor=%{customdata:.3g}<br>SHAP=%{x:.3f}<extra></extra>"))
+                               customdata=top["value"],
+                               hovertemplate="%{y}<br>valor=%{customdata:.3g}<br>SHAP=%{x:.3f}<extra></extra>"))
         st.plotly_chart(style(fig, 380, hovermode="closest", xaxis_title="← baja el riesgo | sube el riesgo →"),
                         width="stretch")
     with m_:
@@ -244,8 +255,8 @@ elif view == "Vehículo":
     wm = whatif_model()
     rec = min_recipe(wm, X, whatif_targets()[int(fx.index[0])])
     st.markdown(recipe_text(rec))
-    st.caption("Busca entre todas las combinaciones del simulador (trayectos de ruta, menos viajes cortos, no cortar la "
-               "limpieza) la de menor esfuerzo que lleva el riesgo por debajo del umbral de la flota "
+    st.caption("Busca entre todas las combinaciones del simulador (trayectos de ruta, menos viajes cortos, no cortar "
+               "la limpieza) la de menor esfuerzo que lleva el riesgo por debajo del umbral de la flota "
                f"(top {REL:.0%} de los últimos 30 días), con el GBM de restricciones físicas.")
 
     st.subheader("Ventana de regeneración: cuándo le conviene hacerlo")
@@ -294,18 +305,20 @@ elif view == "Modelo y negocio":
     st.caption(f"AUC within-failed: discrimina *cuándo* se acerca el evento dentro de vehículos que fallan "
                f"(inmune a diferencias de cohorte). C-index supervivencia (RSF): {M['rsf_c_index']:.3f}")
     ci = d[d["model"] == "stack"][["H", "auc", "auc_ci95", "ap", "ap_ci95", "oof_auc"]].copy()
-    ci["AUC holdout (IC95 por vehículo)"] = [f"{a:.3f} [{c[0]:.3f}–{c[1]:.3f}]" for a, c in zip(ci["auc"], ci["auc_ci95"])]
+    ci["AUC holdout (IC95 por vehículo)"] = [f"{a:.3f} [{c[0]:.3f}–{c[1]:.3f}]"
+                                             for a, c in zip(ci["auc"], ci["auc_ci95"])]
     ci["AP holdout (IC95)"] = [f"{a:.3f} [{c[0]:.3f}–{c[1]:.3f}]" for a, c in zip(ci["ap"], ci["ap_ci95"])]
     ci["AUC fuera de fold (train)"] = ci["oof_auc"].round(3)
-    st.dataframe(ci.drop(columns=["auc", "auc_ci95", "ap", "ap_ci95", "oof_auc"]).rename(columns={"H": "Horizonte (días)"}),
-                 hide_index=True, width="stretch")
+    st.dataframe(ci.drop(columns=["auc", "auc_ci95", "ap", "ap_ci95", "oof_auc"])
+                 .rename(columns={"H": "Horizonte (días)"}), hide_index=True, width="stretch")
 
     try:
         TV = json.load(open("data/temporal.json"))
         st.subheader(f"Validación temporal: sistema desplegado el {TV['T']}")
         st.caption("Entrena solo con etiquetas conocidas antes de esa fecha y evalúa después (LightGBM).")
         rows = []
-        for k, name in [("vehiculos_nuevos", "Vehículos nuevos (holdout)"), ("misma_flota", "Misma flota, en el futuro")]:
+        for k, name in [("vehiculos_nuevos", "Vehículos nuevos (holdout)"),
+                        ("misma_flota", "Misma flota, en el futuro")]:
             for h in (30, 60, 90):
                 r = TV[k][f"H{h}"]
                 rows.append({"Escenario": name, "Horizonte": h,
@@ -321,13 +334,15 @@ elif view == "Modelo y negocio":
         st.caption(f"Política de alerta: top {REL:.0%} de riesgo de la flota en los últimos 30 días (umbral relativo), "
                    "elegida fuera de fold con la misma tasa de falsas alarmas que la ECU, sin mirar el holdout.")
         fig = go.Figure()
-        for key, name, color in [("leadtime_curve", "Umbral fijo", BLUE), ("relative_curve", "Umbral relativo a la flota", AQUA)]:
+        for key, name, color in [("leadtime_curve", "Umbral fijo", BLUE),
+                                 ("relative_curve", "Umbral relativo a la flota", AQUA)]:
             lc = pd.DataFrame(M[key])
-            fig.add_scatter(x=lc["false_alarm_episodes_per_vehicle_year"], y=lc["detection_rate"], mode="lines+markers",
-                            name=name, line=dict(color=color, width=2), marker=dict(size=8),
+            fig.add_scatter(x=lc["false_alarm_episodes_per_vehicle_year"], y=lc["detection_rate"],
+                            mode="lines+markers", name=name, line=dict(color=color, width=2), marker=dict(size=8),
                             customdata=lc[["median_lead_days", "median_lead_km"]],
                             hovertemplate="falsas alarmas/vehículo-año=%{x:.2f}<br>detección=%{y:.0%}"
-                                          "<br>anticipación mediana=%{customdata[0]:.0f} días · %{customdata[1]:,.0f} km"
+                                          "<br>anticipación mediana=%{customdata[0]:.0f} días"
+                                          " · %{customdata[1]:,.0f} km"
                                           "<extra></extra>")
         e = M["ecu_baseline"]
         fig.add_scatter(x=[e["false_alarm_episodes_per_vehicle_year"]], y=[e["detection_rate"]], mode="markers+text",
@@ -338,13 +353,16 @@ elif view == "Modelo y negocio":
                         name="Punto de operación", marker=dict(color=AQUA, size=14, symbol="circle-open", line_width=3),
                         text=[f"{OP['detection_rate']:.0%}"], textposition="top left", hoverinfo="skip")
         st.plotly_chart(style(fig, 380, hovermode="closest", xaxis_title="episodios de falsa alarma por vehículo-año",
-                              yaxis_title="eventos detectados antes de ocurrir", yaxis_tickformat=".0%"), width="stretch")
+                              yaxis_title="eventos detectados antes de ocurrir", yaxis_tickformat=".0%"),
+                        width="stretch")
     with r:
         st.subheader("Calibración (riesgo 90 días)")
         cal = pd.DataFrame(M["calibration"])
         fig = go.Figure()
-        fig.add_scatter(x=[0, cal["pred"].max()], y=[0, cal["pred"].max()], name="ideal", line=dict(color=GRAY, dash="dash", width=1))
-        fig.add_scatter(x=cal["pred"], y=cal["obs"], name="ensamble", mode="lines+markers", line=dict(color=BLUE, width=2))
+        fig.add_scatter(x=[0, cal["pred"].max()], y=[0, cal["pred"].max()], name="ideal",
+                        line=dict(color=GRAY, dash="dash", width=1))
+        fig.add_scatter(x=cal["pred"], y=cal["obs"], name="ensamble", mode="lines+markers",
+                        line=dict(color=BLUE, width=2))
         st.plotly_chart(style(fig, 380, hovermode="closest", xaxis_title="probabilidad predicha",
                               yaxis_title="frecuencia observada"), width="stretch")
 
@@ -383,21 +401,32 @@ elif view == "Modelo y negocio":
     c[1].metric("Eventos evitados / año", f"{det * success:,.0f}")
     c[2].metric("Alertas nivel 1 / año", f"{alerts:,.0f}")
     c[3].metric("Ahorro neto estimado / año", f"USD {saving:,.0f}")
-    st.caption("Supuestos editables; tasas de detección y falsa alarma medidas en holdout con el umbral del punto de operación (días-sanos en alerta).")
+    st.caption("Supuestos editables; tasas de detección y falsa alarma medidas en holdout con el umbral del punto de "
+               "operación (días-sanos en alerta).")
 
 # =====================================================================================
 else:
     st.title("Calidad y trazabilidad del pipeline")
     st.markdown("""
 **Decisiones de datos**
-- **Etiquetas**: se usan los archivos *v2* de fallados. En v1, `IdentificationDate == daysUntilSale` en el 76% de los casos (fecha de venta, no de falla).
-- **Anclaje temporal**: la fecha de producción se reconstruye como `D0 + ProductionDay`; el primer viaje (en planta) coincide con producción con dispersión p5–p95 < 1 día, lo que valida el anclaje y permite ubicar el evento en el calendario.
+- **Etiquetas**: se usan los archivos *v2* de fallados. En v1, `IdentificationDate == daysUntilSale` en el 76% de los
+  casos (fecha de venta, no de falla).
+- **Anclaje temporal**: la fecha de producción se reconstruye como `D0 + ProductionDay`; el primer viaje (en planta)
+  coincide con producción con dispersión p5–p95 < 1 día, lo que valida el anclaje y permite ubicar el evento en el
+  calendario.
 - **Conflictos de etiqueta**: sanos que aparecen en alguna lista de fallados → excluidos.
-- **Eventos múltiples**: un vehículo puede tener varios eventos; tras cada service se excluyen 14 días (transición) y el reloj se reinicia.
+- **Eventos múltiples**: un vehículo puede tener varios eventos; tras cada service se excluyen 14 días (transición) y el
+  reloj se reinicia.
 - **Censura**: un día sano solo es negativo si se observan los H días siguientes.
-- **Anti-leakage**: features solo con pasado (test automático de historia truncada); edad, odómetro y fecha nunca son features (los fallados son una cohorte más antigua); split por vehículo con holdout del 20%.
-- **Corte de telemetría detectado**: desde el {} no llega ningún evento de regeneración (`Regenerations`) en toda la flota, y ya venía perdiendo eventos desde marzo. Usado tal cual, el riesgo de los vehículos sanos subía artificialmente de 4% a 41%.
-- **Regeneraciones reconstruidas**: se detectan como caídas de hollín (`Acumulation`) ≥ 20 puntos entre lecturas consecutivas, señal que nunca dejó de llegar. Validado contra la bandera antes del corte: recall 0.91, precisión 0.81, correlación vehículo-mes 0.88, y tasa estable (≈2.5–3 por 1000 km) antes y después del corte. La distancia entre regeneraciones sale del odómetro. Esto recupera todo el período sin cortes.
+- **Anti-leakage**: features solo con pasado (test automático de historia truncada); edad, odómetro y fecha nunca son
+  features (los fallados son una cohorte más antigua); split por vehículo con holdout del 20%.
+- **Corte de telemetría detectado**: desde el {} no llega ningún evento de regeneración (`Regenerations`) en toda la
+  flota, y ya venía perdiendo eventos desde marzo. Usado tal cual, el riesgo de los vehículos sanos subía
+  artificialmente de 4% a 41%.
+- **Regeneraciones reconstruidas**: se detectan como caídas de hollín (`Acumulation`) ≥ 20 puntos entre lecturas
+  consecutivas, señal que nunca dejó de llegar. Validado contra la bandera antes del corte: recall 0.91, precisión 0.81,
+  correlación vehículo-mes 0.88, y tasa estable (≈2.5–3 por 1000 km) antes y después del corte. La distancia entre
+  regeneraciones sale del odómetro. Esto recupera todo el período sin cortes.
 - **Sentinelas**: temperaturas −73/−128 °C, −60 °C de motor y valores fuera de rango físico → nulos.
 """.format(Q["regen_flag_outage_from"]))
     rows = [(k, v) for k, v in Q.items() if not isinstance(v, dict)]

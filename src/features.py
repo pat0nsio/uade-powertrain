@@ -34,7 +34,6 @@ def calendar(daily, static):
 
 
 def rolling(cal):
-    g = cal.groupby("v", sort=False)
     f = pd.DataFrame(index=cal.index)
     wt = cal[TRIP_W].mul(cal["n_trips"], axis=0).fillna(0)
     wm = cal[MSG_W].mul(cal["n_msgs"], axis=0).fillna(0)
@@ -66,9 +65,9 @@ def rolling(cal):
         f[p + "regen_partial_ratio"] = s["n_regen_partial"] / (s["n_regen"] + s["n_regen_partial"]).replace(0, np.nan)
         f[p + "soot_per_km"] = s["soot_delta"].clip(lower=0) / s["km"].replace(0, np.nan)
 
-
     # tendencias: corto plazo vs largo plazo (aceleración de la degradación)
-    for c in ["acc_mean", "sh_over", "sh_full", "km_per_regen", "fuel_per100", "sh_short5", "soot_mean", "n_regen", "speed"]:
+    for c in ["acc_mean", "sh_over", "sh_full", "km_per_regen", "fuel_per100", "sh_short5", "soot_mean", "n_regen",
+              "speed"]:
         f[f"trend_{c}"] = f[f"w7_{c}"] - f[f"w90_{c}"]
         f[f"trend30_{c}"] = f[f"w30_{c}"] - f[f"w90_{c}"]
 

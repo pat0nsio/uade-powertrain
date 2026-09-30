@@ -36,12 +36,15 @@ xdg-open pitch/index.html               # presentación (sin servidor ni interne
 Los recursos por máquina se configuran en `config.local.json` (no versionado; valores por defecto y documentación en
 `src/config.py`). Para empezar: `cp config.local.ejemplo.json config.local.json` y ajustar. Cada sección es opcional. DuckDB está limitado por defecto a 4 GB y 4 hilos: sin límite, las consultas
 sobre los ~10 M de eventos pueden congelar una máquina de 16 GB (la sección `duckdb` acepta cualquier opción de DuckDB).
-La red neuronal usa GPU si hay (`"device": "auto"`); se puede forzar `"cpu"` o `"cuda"` (NVIDIA o AMD con ROCm).
+La red neuronal y los bootstraps de `src.diagnose` usan GPU si hay (`torch.device`: `"auto"`); se puede forzar `"cpu"` o
+`"cuda"` (NVIDIA o AMD con ROCm). El entrenamiento de LightGBM va en CPU salvo `"lightgbm": {"device": "gpu"}` (OpenCL;
+en AMD requiere `rocm-opencl-runtime`).
 
 ```json
 {
   "duckdb": {"memory_limit": "8GB", "threads": 8},
   "torch":  {"device": "auto", "amp": true, "threads": null},
+  "lightgbm": {"device": "cpu"},
   "gru":    {"seeds": 5, "max_epochs": 40, "patience": 3, "val_frac": 0.15, "batch": 512, "pred_batch": 4096,
              "pre_epochs": 5},
   "env":    {"HSA_OVERRIDE_GFX_VERSION": "10.3.0"}
@@ -317,6 +320,12 @@ modelo sin altura, IC95 de a pares por vehículo:
   aunque en la validación temporal la pérdida desaparece. El país lleva algo más que la altura (probablemente parte del
   diseño muestral).
 - La ciudad de venta no es donde circula el vehículo; con GPS o presión barométrica valdría repetir la prueba.
+- **Coincide con la exploración en notebooks** (`notebooks/exploracion/04_modelo.ipynb`): ahí la altitud mejora el
+  PR-AUC (0.166 → 0.181) pero contra un modelo **sin** país (con país: 0.189), y con restricción monótona queda en
+  +0.010, dentro del ±0.01 que el propio notebook declara como ruido. La tasa de falla por tramo de altura no es
+  monótona (17 % / 36 % / 11 % / 43 % en < 500 / 500–1500 / 1500–2500 / > 2500 m: sigue a Santiago y Bogotá), la
+  restricción monótona empeora el modelo (0.181 → 0.176) y la altitud es la variable con más SHAP porque es fija por
+  vehículo: identifica cohortes (quién falla), no anticipa cuándo.
 
 ## Limitaciones y próximos pasos
 

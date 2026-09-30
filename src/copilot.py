@@ -94,7 +94,8 @@ def window_text(P, N):
     (d2, b2), q = near.index[0], near.iloc[0]
     if q >= 0.5:
         return (f"No tiene un trayecto de {MIN_MINS}+ min habitual, pero los {d2} a la {b2} suele hacer uno de "
-                f"10–{MIN_MINS} min ({q:.0%} de las semanas): estirarlo unos minutos alcanza para completar la limpieza.")
+                f"10–{MIN_MINS} min ({q:.0%} de las semanas): estirarlo unos minutos alcanza para completar la "
+                "limpieza.")
     return (f"No tiene un trayecto de {MIN_MINS}+ min habitual (el más frecuente: {d} a la {b}, {p:.0%} de las "
             f"semanas). Conviene planificar uno por semana.")
 
@@ -113,7 +114,8 @@ def _check():
     for w in range(WEEKS):
         thu = day - pd.Timedelta(days=3 + 7 * w) + pd.Timedelta(hours=18.5)
         mon = day - pd.Timedelta(days=6 + 7 * w) + pd.Timedelta(hours=8)
-        rows += [{"lts": thu, "mins": 35.0}, {"lts": mon, "mins": 12.0}, {"lts": mon + pd.Timedelta(hours=2), "mins": 3.0}]
+        rows += [{"lts": thu, "mins": 35.0}, {"lts": mon, "mins": 12.0},
+                 {"lts": mon + pd.Timedelta(hours=2), "mins": 3.0}]
     rows.append({"lts": day + pd.Timedelta(days=2), "mins": 300.0})  # futuro: no debe contar
     P, N = regen_windows(pd.DataFrame(rows), day)
     assert P.loc["jueves", "noche"] == 1 and P.values.sum() == 1, P

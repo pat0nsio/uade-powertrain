@@ -111,8 +111,8 @@ def main_nn(tag, **arch):
         R[k] = nn_scenario(f, cal, tr, te, arch, save=f"data/nn_temporal_{tag}_{k}.parquet")
         for h in HORIZONS:
             r = R[k][f"H{h}"]
-            print(f"  {k} H{h}: AUC {r['auc']:.3f} {np.round(r['auc_ci95'], 3)} AP {r['ap']:.3f} (base {r['base_rate']:.3f})",
-                  flush=True)
+            print(f"  {k} H{h}: AUC {r['auc']:.3f} {np.round(r['auc_ci95'], 3)} AP {r['ap']:.3f}"
+                  f" (base {r['base_rate']:.3f})", flush=True)
     with open("data/nn_temporal.jsonl", "a") as fh:
         fh.write(json.dumps(R, default=float) + "\n")
 
@@ -133,8 +133,8 @@ def main():
         print(f"== {k} (entrena < {R['T']}, evalúa >=)")
         for h in HORIZONS:
             r = R[k][f"H{h}"]
-            print(f"  H{h}: AUC {r['auc']:.3f} {np.round(r['auc_ci95'], 3)}  AP {r['ap']:.3f} (base {r['base_rate']:.3f})"
-                  f"  filas={r['n_rows']} vehículos={r['n_vehicles']}")
+            print(f"  H{h}: AUC {r['auc']:.3f} {np.round(r['auc_ci95'], 3)}  AP {r['ap']:.3f}"
+                  f" (base {r['base_rate']:.3f})  filas={r['n_rows']} vehículos={r['n_vehicles']}")
         a = R[k]["alerting_H90"]
         r = lambda d: {x: round(y, 3) for x, y in d.items()}
         print("  ECU:            ", r(a["ecu"]))

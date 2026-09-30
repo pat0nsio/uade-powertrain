@@ -18,9 +18,11 @@ COOLDOWN = 30  # días sin re-notificar tras una alerta
 SCORE = "stack90"
 
 GROUPS = {  # hipótesis física -> prefijos de features
-    "Hollín / DPF": ["acc_", "soot", "sh_full", "sh_over", "sh_overloaded", "sh_end_full", "sh_end_over", "life_sh_over"],
+    "Hollín / DPF": ["acc_", "soot", "sh_full", "sh_over", "sh_overloaded", "sh_end_full", "sh_end_over",
+                     "life_sh_over"],
     "Regeneraciones": ["regen", "dbr", "km_per_regen", "days_since_regen", "km_since_regen", "sh_trip_end_in_regen"],
-    "Patrón de uso": ["short", "micro", "km_per_trip", "n_trips", "km", "mins", "speed", "urban", "night", "idle", "active"],
+    "Patrón de uso": ["short", "micro", "km_per_trip", "n_trips", "km", "mins", "speed", "urban", "night", "idle",
+                      "active"],
     "Térmico / arranques en frío": ["etmax", "etavg", "cool", "never_warm", "cold_start"],
     "Consumo": ["fuel"],
     "Aceite": ["oil"],
@@ -54,7 +56,8 @@ def leadtime(p, score, thr):
             if len(w) < 5:
                 continue
             al = w[w[score] >= thr]
-            r = {"v": v, "event": ev, "detected": len(al) > 0, "lead_days": (ev - al["day"].min()).days if len(al) else 0}
+            r = {"v": v, "event": ev, "detected": len(al) > 0,
+                 "lead_days": (ev - al["day"].min()).days if len(al) else 0}
             if "cum_km" in g:  # km recorridos entre la primera alerta y el evento
                 r["lead_km"] = g.loc[g["day"] <= ev, "cum_km"].iloc[-1] - al["cum_km"].iloc[0] if len(al) else 0.0
             rows.append(r)
@@ -66,7 +69,8 @@ def leadtime(p, score, thr):
     starts = int((gap.isna() | (gap > COOLDOWN)).sum())
     years = h.groupby("v")["day"].agg(lambda d: (d.max() - d.min()).days + 1).sum() / 365
     out = {"detection_rate": lt["detected"].mean(), "median_lead_days": lt.loc[lt.detected, "lead_days"].median(),
-           "mean_lead_days": lt.loc[lt.detected, "lead_days"].mean(), "healthy_day_alarm_rate": (h[score] >= thr).mean(),
+           "mean_lead_days": lt.loc[lt.detected, "lead_days"].mean(),
+           "healthy_day_alarm_rate": (h[score] >= thr).mean(),
            "false_alarm_episodes_per_vehicle_year": starts / years, "n_events": len(lt)}
     if "lead_km" in lt:
         out["median_lead_km"] = lt.loc[lt.detected, "lead_km"].median()
@@ -92,7 +96,8 @@ def fleet_threshold(p, score, pct, window=REL_WINDOW):
 def pick_operating(curve, ecu):
     """Mayor sensibilidad cuya tasa de falsas alarmas no supera la de la ECU."""
     key = "target_fpr" if "target_fpr" in curve[0] else "pct"
-    ok = [c[key] for c in curve if c["false_alarm_episodes_per_vehicle_year"] <= ecu["false_alarm_episodes_per_vehicle_year"]]
+    ecu_fa = ecu["false_alarm_episodes_per_vehicle_year"]
+    ok = [c[key] for c in curve if c["false_alarm_episodes_per_vehicle_year"] <= ecu_fa]
     return max(ok) if ok else min(c[key] for c in curve)
 
 
@@ -133,12 +138,14 @@ def main():
             auc_ci, ap_ci = cluster_ci(y, s, p.loc[m, "v"])
             disc.append({"model": mod, "H": h, "auc": roc_auc_score(y, s), "ap": average_precision_score(y, s),
                          "auc_ci95": auc_ci, "ap_ci95": ap_ci,
-                         "oof_auc": roc_auc_score(p.loc[oof & p[f"m{h}"], f"y{h}"], p.loc[oof & p[f"m{h}"], f"{mod}{h}"]),
+                         "oof_auc": roc_auc_score(p.loc[oof & p[f"m{h}"], f"y{h}"],
+                                                  p.loc[oof & p[f"m{h}"], f"{mod}{h}"]),
                          "auc_within_failed": roc_auc_score(p.loc[wf, f"y{h}"], p.loc[wf, f"{mod}{h}"]),
                          "base_rate": y.mean(), "brier": brier_score_loss(y, s.clip(0, 1))})
         s = -np.log(p.loc[m, "ae_err"])
         disc.append({"model": "autoencoder", "H": h, "auc": roc_auc_score(y, -s), "ap": average_precision_score(y, -s),
-                     "auc_within_failed": roc_auc_score(p.loc[wf, f"y{h}"], p.loc[wf, "ae_err"]), "base_rate": y.mean()})
+                     "auc_within_failed": roc_auc_score(p.loc[wf, f"y{h}"], p.loc[wf, "ae_err"]),
+                     "base_rate": y.mean()})
     M["discrimination"] = disc
     # concordancia de la supervivencia (C-index) sobre el RUL
     from sksurv.metrics import concordance_index_censored
@@ -149,7 +156,8 @@ def main():
     # ---- calibración del stack ----
     m = test & p["m90"]
     bins = pd.qcut(p.loc[m, SCORE], 10, duplicates="drop")
-    M["calibration"] = p.loc[m].groupby(bins, observed=True).agg(pred=(SCORE, "mean"), obs=("y90", "mean")).to_dict("records")
+    M["calibration"] = p.loc[m].groupby(bins, observed=True).agg(pred=(SCORE, "mean"), obs=("y90", "mean")) \
+        .to_dict("records")
 
     # ---- lead time vs falsas alarmas (umbral fijado en OOF sanos, aplicado a test) ----
     p["score_s"] = smooth(p, SCORE)
@@ -204,7 +212,8 @@ def main():
     M.update(oof_relative_curve=oof_rel, relative_curve=rel_curve, relative_operating_pct=rop,
              ci95_relative={"detection": np.percentile([b["detected"].mean() for b in bs], [2.5, 97.5]).tolist(),
                             **{f"median_{k}": np.nanpercentile([b.loc[b.detected, k].median() for b in bs],
-                                                               [2.5, 97.5]).tolist() for k in ("lead_days", "lead_km")}})
+                                                               [2.5, 97.5]).tolist()
+                               for k in ("lead_days", "lead_km")}})
     p["thr_rel"] = fleet_threshold(p, "score_s", rop)
     p["thr_rel_med"] = fleet_threshold(p, "score_s", min(2 * rop, 0.5))
 

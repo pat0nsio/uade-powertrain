@@ -22,7 +22,8 @@ H = 90
 def ema_base(cal):
     """Las 17 series diarias que promedia la EMA (mismo orden que dpf_day_t en edge/dpf_edge.h, con horas = min/60)."""
     base = pd.DataFrame({"v": cal["v"], "n_trips": cal["n_trips"], "n_msgs": cal["n_msgs"].fillna(0), "km": cal["km"],
-                         "hours": cal["mins"] / 60, "n_regen": cal["n_regen"], "n_regen_stopped": cal["n_regen_stopped"]})
+                         "hours": cal["mins"] / 60, "n_regen": cal["n_regen"],
+                         "n_regen_stopped": cal["n_regen_stopped"]})
     for c in TRIP_RATIOS:
         base[c + "__n"] = (cal[c] * cal["n_trips"]).fillna(0)
     for c in MSG_RATIOS:
@@ -283,7 +284,8 @@ def c_model(booster, thr_raw):
         roots.append(walk(t["tree_structure"], 0))
     arr = lambda typ, name, xs, f=str: f"static const {typ} {name}[{len(xs)}] = {{{', '.join(f(x) for x in xs)}}};"
     return "\n".join([
-        "/* GENERADO por `python -m src.edge export` a partir del modelo entrenado. No editar. No versionar (datos Ford). */",
+        "/* GENERADO por `python -m src.edge export` a partir del modelo entrenado. No editar. "
+        "No versionar (datos Ford). */",
         "#ifndef DPF_EDGE_MODEL_H", "#define DPF_EDGE_MODEL_H", "#include <stdint.h>", "",
         f"#define DPF_N_TREES {len(roots)}", f"#define DPF_MAX_DEPTH {depth}",
         "#define DPF_MISSING_NONE 0", "#define DPF_MISSING_ZERO 1", "#define DPF_MISSING_NAN 2", "",
@@ -313,7 +315,8 @@ def export(n_test=40):
     for k in range(K):
         tr = oof & (f["fold"].values != k) & m
         va = f["fold"].values == k
-        raw_oof[va] = fit(models()[EDGE_MODEL], f.loc[tr, cols], y[tr]).booster_.predict(f.loc[va, cols], raw_score=True)
+        mk = fit(models()[EDGE_MODEL], f.loc[tr, cols], y[tr])
+        raw_oof[va] = mk.booster_.predict(f.loc[va, cols], raw_score=True)
     thr_raw = float(np.quantile(raw_oof[oof & (f["failed"].values == 0)], 1 - fpr))
     ecu_lt, ecu = leadtime(f[test], "ecu", 0.5)
     lt, st = leadtime(f[test].assign(a=raw[test]), "a", thr_raw)
