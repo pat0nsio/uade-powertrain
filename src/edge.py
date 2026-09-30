@@ -1,4 +1,5 @@
 """Alerta a bordo con memoria fija (EMA + umbral fijo) vs ECU; `export` genera el C y verifica paridad."""
+import io
 import json
 
 import lightgbm as lgb
@@ -7,7 +8,7 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 from sklearn.tree import DecisionTreeClassifier, export_text
 
-from src.evaluate import leadtime
+from src.evaluate import leadtime, paired_detection
 from src.models import GBM_PARAMS, K, split
 from src.temporal import CAL, T, known_at
 
@@ -121,15 +122,6 @@ def operate(cal, s_cal, ref_cal, ev, s_ev, ref_ev, ecu_cal, ecu_ev):
     ok = [x for x, (_, c) in ev_curve.items() if not_worse(c, ecu_ev)]
     m = max(ok, key=lambda x: ev_curve[x][1]["detection_rate"]) if ok else min(FPR_GRID)
     return {"fpr_op": op, "op": st, "lt": lt, "same_fa": ev_curve[m][1], "same_fa_lt": ev_curve[m][0]}
-
-
-def paired_detection(lt_a, lt_b, n=2000, seed=0):
-    """IC95 de detección(b) - detección(a) remuestreando eventos (mismos eventos en las dos políticas)."""
-    a = lt_a.set_index(["v", "event"])["detected"].astype(float)
-    b = lt_b.set_index(["v", "event"])["detected"].astype(float).reindex(a.index)
-    rng = np.random.default_rng(seed)
-    d = [(b.values[i] - a.values[i]).mean() for i in (rng.integers(0, len(a), len(a)) for _ in range(n))]
-    return [float(b.mean() - a.mean()), np.percentile(d, [2.5, 97.5]).round(3).tolist()]
 
 
 def summarize(o, ecu_lt):
@@ -344,7 +336,7 @@ def export(n_test=40):
     subprocess.run(["cc", "-std=c99", "-O2", "-Wall", "-Wextra", "-pedantic", "-Werror", "-Iedge",
                     f"{C_DIR}/dpf_edge.c", f"{C_DIR}/test_dpf_edge.c", "-lm", "-o", exe], check=True)
     out = subprocess.run([exe], input=lines, capture_output=True, text=True, check=True).stdout
-    got = pd.read_csv(pd.io.common.StringIO(out), header=None, names=["v", "raw", "alert"])
+    got = pd.read_csv(io.StringIO(out), header=None, names=["v", "raw", "alert"])
     e = ema_features(c)
     exp = b.predict(e[cols], raw_score=True)
     diff = np.abs(got["raw"].values - exp)

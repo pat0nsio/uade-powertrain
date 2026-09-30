@@ -16,8 +16,9 @@ from src.features import CATS, HORIZONS, MAXS, MINS, MSG_W, SUMS, TRIP_W, featur
 
 SEED, K = 0, 5
 MOD = Path("models")
-GBM_PARAMS = dict(n_estimators=500, learning_rate=0.03, num_leaves=31, min_child_samples=200, subsample=0.8,
-                  subsample_freq=1, colsample_bytree=0.5, reg_lambda=1.0, verbose=-1, random_state=SEED)
+GBM_BASE = dict(n_estimators=500, learning_rate=0.03, num_leaves=31, min_child_samples=200, subsample=0.8,
+                subsample_freq=1, colsample_bytree=0.5, reg_lambda=1.0, verbose=-1, random_state=SEED)
+GBM_PARAMS = dict(GBM_BASE)
 if (MOD / "gbm_params.json").exists():  # elegidos por `python -m src.models tune` (solo con folds de train)
     GBM_PARAMS.update(json.load(open(MOD / "gbm_params.json"))["best"])
 GBM_PARAMS["device_type"] = CFG["lightgbm"]["device"]  # solo entrenamiento; la predicción de LightGBM es en CPU
@@ -475,11 +476,7 @@ def tune(h=90):
     f = pd.read_parquet("data/features.parquet")
     cols = feature_cols(f)
     f["fold"] = split(f)
-    base = {k: v for k, v in GBM_PARAMS.items()}
-    for k in {k for g in GRID for k in g}:  # partir siempre de la configuración original
-        base.pop(k, None)
-    base.update(n_estimators=500, learning_rate=0.03, num_leaves=31, min_child_samples=200, colsample_bytree=0.5,
-                reg_lambda=1.0, extra_trees=False)
+    base = {**GBM_BASE, "extra_trees": False, "device_type": GBM_PARAMS["device_type"]}
     res = []
     for i, g in enumerate(GRID):
         params = {**base, **g}
@@ -553,8 +550,7 @@ if __name__ == "__main__":
     if "tune" in sys.argv:
         tune()
     elif "nn" in sys.argv:  # python -m src.models nn <tag> [seq=180 tab=1 head=hazard]
-        kv = dict(a.split("=") for a in sys.argv[3:])
-        nn_cv(sys.argv[2], **{k: (v if k == "head" else int(v)) for k, v in kv.items()})
+        nn_cv(sys.argv[2], **{k: (v if k == "head" else int(v)) for k, v in (a.split("=") for a in sys.argv[3:])})
     elif "whatif" in sys.argv:
         fit_whatif()
     else:

@@ -52,9 +52,8 @@ def load_features():
 
 
 @st.cache_resource
-def booster():
-    b = lgb.Booster(model_file="models/gbm90.txt")
-    return b, shap.TreeExplainer(b)
+def explainer():
+    return shap.TreeExplainer(lgb.Booster(model_file="models/gbm90.txt"))
 
 
 @st.cache_resource
@@ -71,13 +70,7 @@ def whatif_targets():
 
 @st.cache_data
 def trips():
-    t = pd.read_parquet("data/trips.parquet", columns=["v", "lts", "mins", "dpf_state0", "dpf_state1"])
-    return t
-
-
-def vehicle_trips(v):
-    t = trips()
-    return t[t["v"] == v]
+    return pd.read_parquet("data/trips.parquet", columns=["v", "lts", "mins", "dpf_state0", "dpf_state1"])
 
 
 @st.cache_data
@@ -127,14 +120,13 @@ ADVICE = {
 # =====================================================================================
 if view == "Flota":
     st.title("Estado de la flota")
-    lc = OP
     c = st.columns(4)
     c[0].metric("Vehículos monitoreados", f"{len(latest)}")
     c[1].metric("En alerta alta", f"{(latest['estado'] == 'Alto').sum()}")
     c[2].metric("Anticipación mediana",
-                f"{lc['median_lead_days']:.0f} días · {lc['median_lead_km']:,.0f} km".replace(",", "."),
-                f"{lc['median_lead_days'] - (M['ecu_baseline']['median_lead_days'] or 0):+.0f} días vs advertencia ECU")
-    c[3].metric("Eventos detectados antes de ocurrir", f"{lc['detection_rate']:.0%}")
+                f"{OP['median_lead_days']:.0f} días · {OP['median_lead_km']:,.0f} km".replace(",", "."),
+                f"{OP['median_lead_days'] - (M['ecu_baseline']['median_lead_days'] or 0):+.0f} días vs advertencia ECU")
+    c[3].metric("Eventos detectados antes de ocurrir", f"{OP['detection_rate']:.0%}")
 
     l, r = st.columns([3, 2])
     with l:
@@ -213,7 +205,7 @@ elif view == "Vehículo":
         col.plotly_chart(style(fig, 200, title=dict(text=t, font=dict(size=12)), showlegend=False), width="stretch")
 
     l, m_, r = st.columns([2, 1.2, 1.3])
-    b, ex = booster()
+    ex = explainer()
     X = fx[cols]
     sv = ex.shap_values(X)
     sv = (sv[1] if isinstance(sv, list) else sv)[0]
@@ -260,7 +252,7 @@ elif view == "Vehículo":
                f"(top {REL:.0%} de los últimos 30 días), con el GBM de restricciones físicas.")
 
     st.subheader("Ventana de regeneración: cuándo le conviene hacerlo")
-    P, N = regen_windows(vehicle_trips(v), day)
+    P, N = regen_windows(trips().loc[lambda t: t["v"] == v], day)
     st.markdown(window_text(P, N))
     l2, r2 = st.columns([3, 2])
     with l2:
@@ -382,7 +374,6 @@ elif view == "Modelo y negocio":
         st.plotly_chart(style(fig, 360, hovermode="closest"), width="stretch")
 
     st.subheader("Impacto económico estimado")
-    lc5 = OP
     c = st.columns(3)
     fleet = c[0].number_input("Vehículos diésel en la red", 1000, 1_000_000, 50_000, step=1000)
     rate = c[1].number_input("Eventos de degradación por vehículo-año", 0.0, 0.5, 0.05, format="%.3f")
@@ -392,8 +383,8 @@ elif view == "Modelo y negocio":
     notify = c[1].number_input("Costo por alerta nivel 1 (push al cliente + seguimiento, USD)", 0, 200, 3)
     prev = c[2].number_input("Costo acción preventiva nivel 2 (regeneración asistida, USD)", 0, 2000, 120, step=10)
     ev = fleet * rate
-    det = ev * lc5["detection_rate"]
-    alerts = det + fleet * lc5["false_alarm_episodes_per_vehicle_year"]
+    det = ev * OP["detection_rate"]
+    alerts = det + fleet * OP["false_alarm_episodes_per_vehicle_year"]
     # nivel 1: toda alerta = notificación con recomendación de manejo; nivel 2: solo eventos reales que persisten
     saving = det * success * repair - alerts * notify - det * prev
     c = st.columns(4)

@@ -22,7 +22,7 @@ class Pre(torch.nn.Module):
 def v1_calendar():
     d = pd.read_parquet("data/daily_v1.parquet")
     d["day"] = pd.to_datetime(d["day"])
-    return calendar(d, None)
+    return calendar(d)
 
 
 def pretrain(seq, vehicles, day_max):

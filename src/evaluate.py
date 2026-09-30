@@ -114,6 +114,22 @@ def cluster_ci(y, s, veh, n=300, seed=0):
     return np.percentile(aucs, [2.5, 97.5]).tolist(), np.percentile(aps, [2.5, 97.5]).tolist()
 
 
+def event_ci(e, rng, n=1000):
+    bs = [e.iloc[rng.integers(0, len(e), len(e))] for _ in range(n)]
+    return {"detection": np.percentile([b["detected"].mean() for b in bs], [2.5, 97.5]).tolist(),
+            **{f"median_{k}": np.nanpercentile([b.loc[b.detected, k].median() for b in bs], [2.5, 97.5]).tolist()
+               for k in ("lead_days", "lead_km")}}
+
+
+def paired_detection(lt_a, lt_b, n=2000, seed=0):
+    """IC95 de detección(b) - detección(a) remuestreando eventos (mismos eventos en las dos políticas)."""
+    a = lt_a.set_index(["v", "event"])["detected"].astype(float)
+    b = lt_b.set_index(["v", "event"])["detected"].astype(float).reindex(a.index)
+    rng = np.random.default_rng(seed)
+    d = [(b.values[i] - a.values[i]).mean() for i in (rng.integers(0, len(a), len(a)) for _ in range(n))]
+    return [float(b.mean() - a.mean()), np.percentile(d, [2.5, 97.5]).round(3).tolist()]
+
+
 def main():
     p = pd.read_parquet("data/preds.parquet")
     f = pd.read_parquet("data/features.parquet")
@@ -167,9 +183,7 @@ def main():
     # punto de operación elegido SOLO con OOF: el mayor FPR cuya tasa de falsas alarmas no supere la de la ECU
     ecu_oof = leadtime(p[oof], "ecu_warning", 0.5)[1]
     oof_curve = [{"target_fpr": fpr, **leadtime(p[oof], "score_s", ref.quantile(1 - fpr))[1]} for fpr in FPRS]
-    ok = [c["target_fpr"] for c in oof_curve
-          if c["false_alarm_episodes_per_vehicle_year"] <= ecu_oof["false_alarm_episodes_per_vehicle_year"]]
-    op = max(ok) if ok else min(FPRS)
+    op = pick_operating(oof_curve, ecu_oof)
     M["oof_leadtime_curve"], M["oof_ecu_baseline"] = oof_curve, ecu_oof
     lead, curve = [], []
     for fpr in FPRS:
@@ -187,16 +201,9 @@ def main():
     M["operating_fpr"] = op
     # IC 95% bootstrap sobre eventos (holdout chico -> reportar incertidumbre)
     rng = np.random.default_rng(0)
+    e = pd.concat(lead)
     for name, key in [("model", str(op)), ("ecu", "ECU")]:
-        e = pd.concat(lead)
-        e = e[e["target_fpr"] == key].reset_index(drop=True)
-        bs = [e.iloc[rng.integers(0, len(e), len(e))] for _ in range(1000)]
-        det = [b["detected"].mean() for b in bs]
-        ld = [b.loc[b.detected, "lead_days"].median() for b in bs]
-        lk = [b.loc[b.detected, "lead_km"].median() for b in bs]
-        M[f"ci95_{name}"] = {"detection": np.percentile(det, [2.5, 97.5]).tolist(),
-                             "median_lead_days": np.nanpercentile(ld, [2.5, 97.5]).tolist(),
-                             "median_lead_km": np.nanpercentile(lk, [2.5, 97.5]).tolist()}
+        M[f"ci95_{name}"] = event_ci(e[e["target_fpr"] == key], rng)
     M["alarm_threshold"] = next(c["threshold"] for c in curve if c["target_fpr"] == op)
 
     # ---- umbral RELATIVO a la flota (alerta = top X% de riesgo de la flota en los últimos 30 días) ----
@@ -208,12 +215,8 @@ def main():
         lt, s = leadtime(p[test].assign(a=rel[pct][test.values]), "a", 0.5)
         rel_curve.append({"pct": pct, **s})
         rel_lead = lt if pct == rop else rel_lead
-    bs = [rel_lead.iloc[rng.integers(0, len(rel_lead), len(rel_lead))] for _ in range(1000)]
     M.update(oof_relative_curve=oof_rel, relative_curve=rel_curve, relative_operating_pct=rop,
-             ci95_relative={"detection": np.percentile([b["detected"].mean() for b in bs], [2.5, 97.5]).tolist(),
-                            **{f"median_{k}": np.nanpercentile([b.loc[b.detected, k].median() for b in bs],
-                                                               [2.5, 97.5]).tolist()
-                               for k in ("lead_days", "lead_km")}})
+             ci95_relative=event_ci(rel_lead, rng))
     p["thr_rel"] = fleet_threshold(p, "score_s", rop)
     p["thr_rel_med"] = fleet_threshold(p, "score_s", min(2 * rop, 0.5))
 

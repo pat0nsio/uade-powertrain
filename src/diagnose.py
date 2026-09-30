@@ -291,9 +291,9 @@ def _policies(p, ref, ecu_col="ecu"):
 
 def _compare(cal, ev, ref, label, cal_mask=None, ev_mask=None):
     """Punto de operación elegido en `cal` (falsas alarmas <= ECU), evaluado en `ev`."""
-    from src.evaluate import leadtime
-    A_cal, A_ev = _policies(cal, ref), (_policies(ev, ref) if ev is not cal else None)
-    A_ev = A_ev or A_cal
+    from src.evaluate import leadtime, paired_detection, pick_operating
+    A_cal = _policies(cal, ref)
+    A_ev = A_cal if ev is cal else _policies(ev, ref)
     if cal_mask is not None:
         A_cal = {k: a[cal_mask] for k, a in A_cal.items()}
         cal = cal[cal_mask].reset_index(drop=True)
@@ -301,28 +301,23 @@ def _compare(cal, ev, ref, label, cal_mask=None, ev_mask=None):
         A_ev = {k: a[ev_mask] for k, a in A_ev.items()}
         ev = ev[ev_mask].reset_index(drop=True)
     ecu_cal, ecu_ev = leadtime(cal, "ecu", 0.5)[1], leadtime(ev, "ecu", 0.5)
-    res, det = {"ecu": ecu_ev[1]}, {"ecu": ecu_ev[0].set_index(["v", "event"])["detected"]}
+    res, det = {"ecu": ecu_ev[1]}, {}
     for kind in ("fijo", "relativo"):
         for pol in ("modelo", "modelo_o_ecu"):
             keys = [k for k in A_cal if k[:2] == (kind, pol)]
-            cal_curve = {k[2]: leadtime(cal.assign(a=A_cal[k].astype(float)), "a", 0.5)[1] for k in keys}
-            ok = [x for x, c in cal_curve.items() if c["false_alarm_episodes_per_vehicle_year"]
-                  <= ecu_cal["false_alarm_episodes_per_vehicle_year"]]
-            op = max(ok) if ok else min(cal_curve)
+            op = pick_operating([{"pct": k[2], **leadtime(cal.assign(a=A_cal[k].astype(float)), "a", 0.5)[1]}
+                                 for k in keys], ecu_cal)
             curve = {}
             for k in keys:
                 lt, s = leadtime(ev.assign(a=A_ev[k].astype(float)), "a", 0.5)
                 curve[k[2]] = s
                 if k[2] == op:
-                    det[f"{kind}_{pol}"] = lt.set_index(["v", "event"])["detected"]
+                    det[f"{kind}_{pol}"] = lt
             res[f"{kind}_{pol}"] = {"operating": op, "at_op": curve[op], "curve": curve}
     # IC95 de la diferencia de detección (combinada - modelo solo) remuestreando eventos, a su punto de operación
     rng = np.random.default_rng(0)
     for kind in ("fijo", "relativo"):
-        a = det[f"{kind}_modelo"].astype(float)
-        b = det[f"{kind}_modelo_o_ecu"].astype(float).reindex(a.index)
-        d = [(b.values[i] - a.values[i]).mean() for i in (rng.integers(0, len(a), len(a)) for _ in range(2000))]
-        res[f"{kind}_delta_deteccion"] = [float(b.mean() - a.mean()), np.percentile(d, [2.5, 97.5]).round(3).tolist()]
+        res[f"{kind}_delta_deteccion"] = paired_detection(det[f"{kind}_modelo"], det[f"{kind}_modelo_o_ecu"], seed=rng)
     print(f"== {label}  (ECU: detección {ecu_ev[1]['detection_rate']:.3f}, "
           f"FA {ecu_ev[1]['false_alarm_episodes_per_vehicle_year']:.2f}/veh-año, {ecu_ev[1]['n_events']} eventos)")
     for kind in ("fijo", "relativo"):
@@ -342,8 +337,7 @@ def _compare(cal, ev, ref, label, cal_mask=None, ev_mask=None):
 
 def ecu_combo():
     """Alerta = modelo O advertencia ECU, en holdout y en validación temporal."""
-    from src.evaluate import smooth
-    from src.temporal import CAL, fit
+    from src.temporal import alert_frames
     res = {}
     # --- holdout por vehículo ---
     p = pd.read_parquet("data/preds.parquet", columns=["v", "day", "fold", "failed", "tte"])
@@ -360,23 +354,9 @@ def ecu_combo():
     f = load().sort_values(["v", "day"]).reset_index(drop=True)
     cols = feature_cols(f)
     every = pd.Series(True, index=f.index)
-    t0 = T - pd.Timedelta(days=CAL)
     for name, (trv, tev) in {"vehiculos_nuevos": (f["fold"] >= 0, f["fold"] == -1),
                              "misma_flota": (every, every)}.items():
-        inner = fit(f, trv & known_at(f, 90, t0), 90, cols)
-        cal = trv & (f["day"] >= t0) & (f["day"] < T)
-        c = f.loc[cal, ["v", "day", "tte"]].copy()
-        c.loc[c["day"] + pd.to_timedelta(c["tte"], "D") >= T, "tte"] = np.nan  # en T no se conocen eventos futuros
-        c["failed"] = c["v"].isin(set(c.loc[c["tte"].notna(), "v"])).astype(int)
-        c["p"] = inner.predict_proba(f.loc[cal, cols])[:, 1]
-        c["s"] = smooth(c, "p")
-        c["ecu"] = (f.loc[cal, "w7_sh_over"].fillna(0) > 0).astype(float)
-        final = fit(f, trv & known_at(f, 90, T), 90, cols)
-        fut = tev & (f["day"] >= T)
-        q = f.loc[fut, ["v", "day", "failed", "tte"]].copy()
-        q["p"] = final.predict_proba(f.loc[fut, cols])[:, 1]
-        q["s"] = smooth(q, "p")
-        q["ecu"] = (f.loc[fut, "w7_sh_over"].fillna(0) > 0).astype(float)
+        c, q = alert_frames(f, trv, tev, cols)
         res[f"temporal_{name}"] = _compare(c.reset_index(drop=True), q.reset_index(drop=True),
                                            c.loc[c["failed"] == 0, "s"],
                                            f"temporal, {name} (punto elegido en [T-90, T))")

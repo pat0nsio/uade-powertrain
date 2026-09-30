@@ -1,5 +1,6 @@
 /* Réplica de src/edge.py (ema_features + LightGBM). */
 #include <math.h>
+#include <string.h>
 
 #include "dpf_edge.h"
 #include "dpf_edge_model.h"
@@ -17,18 +18,7 @@ static void ema_step(double *w, double cur, double alpha) {
     }
 }
 
-void dpf_reset(dpf_state_t *s) {
-    int h, i;
-    for (h = 0; h < DPF_N_HL; h++) {
-        for (i = 0; i < DPF_N_BASE; i++) {
-            s->ema[h][i] = 0.0;
-        }
-    }
-    s->km_since_regen = 0.0;
-    s->days_since_regen = 0.0;
-    s->started = 0U;
-    s->regen_seen = 0U;
-}
+void dpf_reset(dpf_state_t *s) { memset(s, 0, sizeof *s); }
 
 void dpf_features(const dpf_state_t *s, double x[DPF_N_FEATURES]) {
     int h, i, k = 0;

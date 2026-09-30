@@ -20,7 +20,7 @@ NON_FEATURES = {"v", "day", "fold", "failed", "tte", "gap_to_end", "age_days", "
                 *[f"m{h}" for h in HORIZONS]}
 
 
-def calendar(daily, static):
+def calendar(daily):
     """Reindexa cada vehículo a días calendario consecutivos; días sin uso quedan en 0/NaN."""
     out = []
     for v, g in daily.groupby("v", sort=False):
@@ -123,7 +123,7 @@ def build():
     daily = pd.read_parquet("data/daily.parquet")
     static = pd.read_parquet("data/static.parquet")
     daily["day"] = pd.to_datetime(daily["day"])
-    cal = calendar(daily, static)
+    cal = calendar(daily)
     f = rolling(cal)
     y = labels(cal, static)
     st = static.set_index("v")
@@ -152,12 +152,11 @@ if __name__ == "__main__":
         print(f"H={h}: usable={m.sum()} pos={feats.loc[m, f'y{h}'].sum()} rate={feats.loc[m, f'y{h}'].mean():.4f}")
     # check anti-leakage: ninguna feature es función del futuro -> recomputar sobre historia truncada debe dar igual
     daily = pd.read_parquet("data/daily.parquet"); daily["day"] = pd.to_datetime(daily["day"])
-    static = pd.read_parquet("data/static.parquet")
     v = feats.loc[feats["failed"] == 1, "v"].iloc[0]
     dv = daily[daily["v"] == v]
     cut = dv["day"].iloc[len(dv) // 2]
-    full = rolling(calendar(dv, static))
-    trunc = rolling(calendar(dv[dv["day"] <= cut], static))
+    full = rolling(calendar(dv))
+    trunc = rolling(calendar(dv[dv["day"] <= cut]))
     num = full.select_dtypes("number").columns
     pd.testing.assert_frame_equal(full.iloc[:len(trunc)][num], trunc[num], check_dtype=False)
     print("anti-leakage OK (features idénticas con historia truncada)")

@@ -24,7 +24,25 @@ def fit(f, rows, h, cols):
     return lgb.LGBMClassifier(**GBM_PARAMS).fit(f.loc[rows, cols], f.loc[rows, f"y{h}"])
 
 
-def scenario(f, fold, train_veh, test_veh, cols):
+def alert_frames(f, train_veh, test_veh, cols):
+    t0 = T - pd.Timedelta(days=CAL)
+    inner = fit(f, train_veh & known_at(f, 90, t0), 90, cols)
+    cal = train_veh & (f["day"] >= t0) & (f["day"] < T)
+    c = f.loc[cal, ["v", "day", "tte"]].copy()
+    c.loc[c["day"] + pd.to_timedelta(c["tte"], "D") >= T, "tte"] = np.nan  # en T todavía no se conocen eventos futuros
+    c["failed"] = c["v"].isin(set(c.loc[c["tte"].notna(), "v"])).astype(int)
+    c["p"] = inner.predict_proba(f.loc[cal, cols])[:, 1]
+    final = fit(f, train_veh & known_at(f, 90, T), 90, cols)
+    fut = test_veh & (f["day"] >= T)
+    q = f.loc[fut, ["v", "day", "failed", "tte"]].copy()
+    q["p"] = final.predict_proba(f.loc[fut, cols])[:, 1]
+    for d in (c, q):
+        d["s"] = smooth(d, "p")
+        d["ecu"] = (f.loc[d.index, "w7_sh_over"].fillna(0) > 0).astype(float)
+    return c, q
+
+
+def scenario(f, train_veh, test_veh, cols):
     out = {}
     for h in HORIZONS:
         m = fit(f, train_veh & known_at(f, h, T), h, cols)
@@ -37,29 +55,13 @@ def scenario(f, fold, train_veh, test_veh, cols):
                         "n_vehicles": int(f.loc[te, "v"].nunique())}
 
     # punto de operación elegido en [T-90, T) con un modelo entrenado en T-90
-    t0 = T - pd.Timedelta(days=CAL)
-    inner = fit(f, train_veh & known_at(f, 90, t0), 90, cols)
-    cal = train_veh & (f["day"] >= t0) & (f["day"] < T)
-    c = f.loc[cal, ["v", "day", "tte"]].copy()
-    ev_day = c["day"] + pd.to_timedelta(c["tte"], "D")
-    c.loc[ev_day >= T, "tte"] = np.nan  # en T todavía no se conocen eventos futuros
-    known_failed = set(c.loc[c["tte"].notna(), "v"])
-    c["failed"] = c["v"].isin(known_failed).astype(int)
-    c["p"] = inner.predict_proba(f.loc[cal, cols])[:, 1]
-    c["s"] = smooth(c, "p")
-    c["ecu"] = (f.loc[cal, "w7_sh_over"].fillna(0) > 0).astype(float)
+    c, q = alert_frames(f, train_veh, test_veh, cols)
     ecu_cal = leadtime(c, "ecu", 0.5)[1]
     fix_thr = {fpr: c.loc[c["failed"] == 0, "s"].quantile(1 - fpr) for fpr in FPRS}
     fix_op = pick_operating([{"target_fpr": x, **leadtime(c, "s", t)[1]} for x, t in fix_thr.items()], ecu_cal)
     rel_op = pick_operating([{"pct": x, **leadtime(c.assign(a=(c["s"] >= fleet_threshold(c, "s", x)).astype(float)),
                                                    "a", 0.5)[1]} for x in REL_PCTS], ecu_cal)
 
-    final = fit(f, train_veh & known_at(f, 90, T), 90, cols)
-    fut = test_veh & (f["day"] >= T)
-    q = f.loc[fut, ["v", "day", "failed", "tte"]].copy()
-    q["p"] = final.predict_proba(f.loc[fut, cols])[:, 1]
-    q["s"] = smooth(q, "p")
-    q["ecu"] = (f.loc[fut, "w7_sh_over"].fillna(0) > 0).astype(float)
     ecu = leadtime(q, "ecu", 0.5)[1]
     fixed = [{"target_fpr": x, **leadtime(q, "s", t)[1]} for x, t in fix_thr.items()]
     relative = [{"pct": x, **leadtime(q.assign(a=(q["s"] >= fleet_threshold(q, "s", x)).astype(float)), "a", 0.5)[1]}
@@ -126,8 +128,8 @@ def main():
     cols = feature_cols(f)
     every = pd.Series(True, index=f.index)
     R = {"T": str(T.date()),
-         "vehiculos_nuevos": scenario(f, fold, fold >= 0, fold == -1, cols),
-         "misma_flota": scenario(f, fold, every, every, cols)}
+         "vehiculos_nuevos": scenario(f, fold >= 0, fold == -1, cols),
+         "misma_flota": scenario(f, every, every, cols)}
     json.dump(R, open("data/temporal.json", "w"), indent=2, default=float)
     for k in ("vehiculos_nuevos", "misma_flota"):
         print(f"== {k} (entrena < {R['T']}, evalúa >=)")
@@ -145,7 +147,6 @@ def main():
 if __name__ == "__main__":
     import sys
     if "nn" in sys.argv:
-        kv = dict(a.split("=") for a in sys.argv[3:])
-        main_nn(sys.argv[2], **{k: (v if k == "head" else int(v)) for k, v in kv.items()})
+        main_nn(sys.argv[2], **{k: (v if k == "head" else int(v)) for k, v in (a.split("=") for a in sys.argv[3:])})
     else:
         main()

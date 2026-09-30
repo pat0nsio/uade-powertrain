@@ -84,15 +84,15 @@ def build(v1_only=False):
     }
     for k, cond in rules.items():
         q[k] = c.execute(f"select count(*) from t_raw where {cond}").fetchone()[0]
+    ok = f"not ({' or '.join('(' + r + ')' for r in rules.values())})"
     # duplicados (v, ts0): se conserva uno con desempate determinista (si no, el resultado depende de los hilos)
     c.execute(f"""create table t as select *,
         o1-o0 km, epoch(ts1-ts0)/60 mins, ((ts0 at time zone 'UTC') - {LOCAL}) lts
-        from t_raw where not ({' or '.join('(' + r + ')' for r in rules.values())})
+        from t_raw where {ok}
         qualify row_number() over (partition by v, ts0 order by ts1, o0, o1, f0, f1, oil0, oil1, etmin, etmax, etavg,
             soot0, soot1, cool0, cool1, air, airmin, dpf_state0, dpf_state1) = 1
         order by v, ts0""")
-    valid = c.execute(
-        f"select count(*) from t_raw where not ({' or '.join('(' + r + ')' for r in rules.values())})").fetchone()[0]
+    valid = c.execute(f"select count(*) from t_raw where {ok}").fetchone()[0]
     q["trips_dropped_invalid_total"] = q["trips_raw"] - valid
     q["trips_duplicates_dropped"] = valid - c.execute("select count(*) from t").fetchone()[0]
     q["trips_clean"] = c.execute("select count(*) from t").fetchone()[0]
