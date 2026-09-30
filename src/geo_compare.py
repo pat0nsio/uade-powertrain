@@ -21,10 +21,21 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from src.diagnose import paired_ci
 from src.evaluate import FPRS, LOOKBACK, cluster_ci, leadtime, smooth
 from src.features import ALT, HORIZONS, feature_cols
-from src.models import K, fit_gbm, split
+from src.gbm import K, fit_gbm, split
+
+
+def paired_ci(y, a, b, v, n=200, seed=0):
+    """Δ AUC (b − a) e IC95 remuestreando vehículos (mismas filas para los dos modelos). Igual que src.diagnose."""
+    rng = np.random.default_rng(seed)
+    g = list(pd.Series(np.arange(len(y))).groupby(v).indices.values())
+    d = []
+    for _ in range(n):
+        i = np.concatenate([g[k] for k in rng.integers(0, len(g), len(g))])
+        if 0 < y[i].sum() < len(i):
+            d.append(roc_auc_score(y[i], b[i]) - roc_auc_score(y[i], a[i]))
+    return float(np.mean(d)), np.percentile(d, [2.5, 97.5]).round(4).tolist()
 
 
 def oof_and_holdout(f, cols, h):

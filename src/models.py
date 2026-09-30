@@ -11,7 +11,6 @@ producen predicciones OOF (entrenan el stacker); el holdout recibe el promedio d
 Salida: data/preds.parquet, models/*.
 """
 import json
-from pathlib import Path
 
 import joblib
 import lightgbm as lgb
@@ -19,18 +18,11 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedGroupKFold
-from sksurv.ensemble import RandomSurvivalForest
 
 from src.config import CFG, device
 from src.features import ALT, HORIZONS, MAXS, MINS, MSG_W, SUMS, TRIP_W, feature_cols
+from src.gbm import GBM_PARAMS, K, MOD, SEED, fit_gbm, geo_mono, split  # noqa: F401 (reexportados)
 
-SEED, K = 0, 5
-MOD = Path("models")
-GBM_PARAMS = dict(n_estimators=500, learning_rate=0.03, num_leaves=31, min_child_samples=200, subsample=0.8,
-                  subsample_freq=1, colsample_bytree=0.5, reg_lambda=1.0, verbose=-1, random_state=SEED)
-if (MOD / "gbm_params.json").exists():  # hiperparámetros elegidos por `python -m src.models tune` (solo con folds de train)
-    GBM_PARAMS.update(json.load(open(MOD / "gbm_params.json"))["best"])
 G = CFG["gru"]
 torch.manual_seed(SEED)
 if CFG["torch"]["threads"]:
@@ -43,29 +35,7 @@ def autocast():
     return torch.autocast(DEV.type, dtype=torch.float16, enabled=AMP)
 
 
-def split(f):
-    veh = f.groupby("v")["failed"].first()
-    rng = np.random.default_rng(SEED)
-    test = set()
-    for lab in (0, 1):
-        vs = veh[veh == lab].index.values
-        test |= set(rng.choice(vs, int(round(len(vs) * 0.2)), replace=False))
-    fold = pd.Series(-1, index=veh.index)
-    tr = veh[~veh.index.isin(test)]
-    for k, (_, te) in enumerate(StratifiedGroupKFold(K, shuffle=True, random_state=SEED).split(tr, tr, tr.index)):
-        fold[tr.index[te]] = k
-    return f["v"].map(fold).values
-
-
-# ---------------- 1. LightGBM ----------------
-def geo_mono(cols):
-    """Restricción monótona creciente para la altitud (si está entre las features); vacío si no."""
-    cols = list(cols)
-    return {"monotone_constraints": [1 if c == ALT else 0 for c in cols]} if ALT in cols else {}
-
-
-def fit_gbm(X, y):
-    return lgb.LGBMClassifier(**GBM_PARAMS, **geo_mono(X.columns)).fit(X, y)
+# ---------------- 1. LightGBM: split, fit_gbm y geo_mono viven en src/gbm.py (sin PyTorch) ----------------
 
 
 # ---------------- 2. Random Survival Forest ----------------
@@ -79,6 +49,7 @@ def surv_target(d):
 
 
 def fit_rsf(X, d):
+    from sksurv.ensemble import RandomSurvivalForest  # import diferido: el resto del módulo no necesita scikit-survival
     ok = (d["usable"] & ((d["tte"].notna()) | (d["gap_to_end"] > 0))).values
     # landmark: una observación cada ~14 días activos por vehículo (evita miles de filas casi idénticas)
     ok = ok & (d.groupby("v").cumcount() % 14 == 0).values

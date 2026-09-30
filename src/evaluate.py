@@ -7,7 +7,6 @@ import json
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
-import shap
 from sklearn.cluster import KMeans
 from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_score
 from sklearn.preprocessing import StandardScaler
@@ -216,6 +215,7 @@ def main():
     booster = lgb.Booster(model_file="models/gbm90.txt")
     cols = feature_cols(f)
     sample = f.loc[test].sample(5000, random_state=0)[cols]
+    import shap  # import diferido: el resto del módulo (métricas, alertas) no lo necesita
     sv = shap.TreeExplainer(booster).shap_values(sample)
     sv = sv[1] if isinstance(sv, list) else sv
     g = pd.DataFrame({"feature": cols, "mean_abs_shap": np.abs(sv).mean(0)})
