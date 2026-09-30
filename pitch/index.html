@@ -353,6 +353,144 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
 .recap .num { font-size: 52px; }
 .recap .label { font-size: 19px; max-width: 21ch; }
 
+/* ---------- Bloque técnico ---------- */
+svg .node { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+svg .node-accent { fill: var(--accent); }
+svg .node-deep { fill: var(--ink); }
+svg .on-dark { fill: var(--bg); font-size: 19px; font-weight: 650; }
+svg .on-dark-sub { fill: var(--bg); font-size: 16px; opacity: .8; }
+svg .flow { fill: none; stroke: var(--base); stroke-linecap: round; }
+svg .flow-accent { fill: none; stroke: var(--accent); stroke-linecap: round; }
+svg .ring { fill: var(--bg); stroke: var(--accent); stroke-width: 3; }
+svg .hatch-fill { fill: url(#hatch); }
+svg .hatch-line { stroke: var(--base); stroke-width: 2; }
+svg .neg { fill: var(--rule); }
+svg .muted-fill { fill: var(--rule); }
+
+/* Separador de acto */
+.s-act { background: var(--deep); color: var(--on-deep); grid-template-rows: 1fr auto; row-gap: 48px; }
+.s-act .act { align-self: end; font-size: 120px; line-height: .92; font-weight: 800; font-stretch: 125%; letter-spacing: -0.04em; max-width: 12ch; }
+.s-act .lead { color: color-mix(in srgb, var(--on-deep) 78%, transparent); margin-top: 28px; max-width: 44ch; }
+.s-act .map { list-style: none; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 2px solid color-mix(in srgb, var(--on-deep) 40%, transparent); padding-top: 22px; margin-bottom: 40px; }
+.s-act .map li { font-size: 24px; font-weight: 650; }
+.s-act .map span { display: block; font-size: 18px; font-weight: 500; margin-top: 6px; color: color-mix(in srgb, var(--on-deep) 70%, transparent); }
+
+/* Datos */
+.s-data { grid-template-rows: auto 1fr auto; row-gap: 36px; }
+.funnel { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 28px; align-self: center; }
+.funnel li { border-top: 3px solid var(--ink); padding-top: 22px; }
+.funnel li:last-child { border-color: var(--accent); }
+.funnel .num { font-size: 64px; display: block; }
+.funnel li:last-child .num { color: var(--accent-ink); }
+.funnel b { display: block; font-size: 23px; margin: 14px 0 8px; }
+.funnel p { font-size: 19px; line-height: 1.42; color: var(--ink-2); max-width: 26ch; }
+.findings { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 28px; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 26px 30px; }
+.findings b { display: block; font-size: 20px; margin-bottom: 6px; }
+.findings p { font-size: 18px; line-height: 1.42; color: var(--ink-2); }
+
+/* Variables */
+.s-feat { grid-template-columns: 1fr 520px; grid-template-rows: auto 1fr auto; column-gap: 64px; row-gap: 28px; }
+.s-feat .head, .s-feat .foot { grid-column: 1 / -1; }
+.s-feat figure { align-self: center; }
+.fam { display: grid; row-gap: 20px; align-content: center; }
+.fam b { display: block; font-size: 22px; margin-bottom: 4px; }
+.fam p { font-size: 19px; line-height: 1.4; color: var(--ink-2); }
+.foot-note { font-size: 20px; line-height: 1.45; color: var(--ink-2); border-left: 4px solid var(--accent); padding-left: 20px; max-width: 110ch; }
+
+/* Etiquetas */
+.s-label { grid-template-columns: 1fr 380px; grid-template-rows: auto 1fr; column-gap: 64px; row-gap: 32px; }
+.s-label .head { grid-column: 1 / -1; }
+.s-label figure { align-self: center; }
+.rates { display: grid; row-gap: 26px; align-content: center; }
+.rates .num { font-size: 64px; }
+.rates .num small { font-size: .42em; font-weight: 650; letter-spacing: 0; color: var(--muted); margin-left: 10px; }
+.rates .label { margin-top: 6px; font-size: 19px; }
+
+/* Partición */
+.s-split { grid-template-rows: auto 1fr auto; row-gap: 28px; }
+.s-split figure { align-self: center; }
+.rules { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 40px; }
+.rules div { border-top: 2px solid var(--ink); padding-top: 16px; }
+.rules b { display: block; font-size: 22px; margin-bottom: 8px; }
+.rules p { font-size: 19px; line-height: 1.42; color: var(--ink-2); }
+
+/* Ensamble */
+.s-ens { grid-template-rows: auto 1fr auto; row-gap: 24px; }
+.s-ens figure { align-self: center; }
+
+/* LightGBM */
+.s-gbm { grid-template-columns: 1fr 600px; grid-template-rows: auto 1fr auto; column-gap: 72px; row-gap: 28px; }
+.s-gbm .head, .s-gbm .foot { grid-column: 1 / -1; }
+.specs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-content: center; }
+.spec { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 20px 24px; }
+.spec .num { font-size: 50px; display: block; }
+.spec p { font-size: 18px; line-height: 1.38; color: var(--ink-2); margin-top: 10px; }
+.spec.hl { background: var(--tint); border-color: transparent; }
+.spec.hl .num { color: var(--accent-ink); }
+.s-gbm figure { align-self: center; }
+
+/* Red neuronal */
+.s-gru { grid-template-columns: 640px 1fr; grid-template-rows: auto 1fr auto; column-gap: 64px; row-gap: 24px; }
+.s-gru .head { grid-column: 1 / -1; }
+.s-gru figure { align-self: center; }
+.s-gru .notes { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; column-gap: 48px; }
+
+/* Discriminación */
+.s-auc { grid-template-columns: 1fr 420px; grid-template-rows: auto 1fr auto; column-gap: 72px; row-gap: 28px; }
+.s-auc .head, .s-auc .foot { grid-column: 1 / -1; }
+.s-auc figure { align-self: center; }
+.s-auc aside { display: grid; row-gap: 34px; align-content: center; }
+.s-auc aside .num { font-size: 60px; }
+.s-auc aside .num small { font-size: .42em; font-weight: 650; letter-spacing: 0; }
+
+/* Política de alerta */
+.s-policy { grid-template-rows: auto auto 1fr auto; row-gap: 36px; }
+.steps { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 28px; counter-reset: st; }
+.steps li { counter-increment: st; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 24px 28px; }
+.steps li::before { content: counter(st); display: block; font-size: 40px; font-weight: 800; font-stretch: 125%; color: var(--accent-ink); line-height: 1; margin-bottom: 12px; }
+.steps b { display: block; font-size: 23px; margin-bottom: 8px; }
+.steps p { font-size: 19px; line-height: 1.42; color: var(--ink-2); }
+.pol { border-collapse: collapse; width: 100%; align-self: start; }
+.pol th, .pol td { text-align: left; padding: 14px 20px 14px 0; font-size: 22px; line-height: 1.3; }
+.pol thead th { font-size: 18px; font-weight: 650; color: var(--muted); border-bottom: 2px solid var(--ink); }
+.pol tbody th { font-weight: 600; }
+.pol td { font-variant-numeric: tabular-nums; }
+.pol tbody tr + tr > * { border-top: 1px solid var(--rule); }
+.pol tr.win > * { color: var(--accent-ink); font-weight: 700; }
+
+/* SHAP */
+.s-shap { grid-template-columns: 1fr 480px; grid-template-rows: auto 1fr; column-gap: 72px; row-gap: 32px; }
+.s-shap .head { grid-column: 1 / -1; }
+.s-shap figure { align-self: center; }
+.s-shap aside { display: grid; row-gap: 26px; align-content: center; }
+.tops { list-style: none; display: grid; row-gap: 12px; }
+.tops li { font-size: 19px; line-height: 1.38; color: var(--ink-2); padding-left: 18px; border-left: 3px solid var(--rule); }
+.tops li b { font-size: 19px; }
+
+/* What-if */
+.s-whatif { grid-template-columns: 1fr 1fr 400px; grid-template-rows: auto 1fr auto; column-gap: 48px; row-gap: 32px; }
+.s-whatif .head, .s-whatif .foot { grid-column: 1 / -1; }
+.mono-col { align-self: center; min-height: 250px; }
+.mono-col h3 { font-size: 24px; font-weight: 700; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 3px solid var(--ink); }
+.mono-col.down h3 { border-color: var(--accent); }
+.mono-col ul { list-style: none; display: grid; row-gap: 12px; }
+.mono-col li { font-size: 21px; line-height: 1.35; color: var(--ink-2); }
+.price { align-self: center; background: var(--tint); border-radius: 14px; padding: 30px 32px; }
+.price .num { font-size: 64px; color: var(--accent-ink); }
+.price p { font-size: 19px; line-height: 1.42; color: var(--ink-2); margin-top: 14px; }
+
+/* A bordo */
+.s-edge { grid-template-columns: 540px 1fr; grid-template-rows: auto 1fr auto; column-gap: 72px; row-gap: 28px; }
+.s-edge .head, .s-edge .foot { grid-column: 1 / -1; }
+.s-edge figure { align-self: center; }
+.chip { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-content: center; }
+.chip .spec .num { font-size: 44px; }
+
+/* Deriva */
+.s-drift { grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr auto; column-gap: 72px; row-gap: 28px; }
+.s-drift .head, .s-drift .foot { grid-column: 1 / -1; }
+.s-drift figure { align-self: center; }
+
 /* Movimiento: una entrada por slide, en orden de lectura */
 @media (prefers-reduced-motion: no-preference) {
   .slide.is-active [data-r] {
@@ -382,6 +520,9 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
 </head>
 <body>
 <main class="stage" id="stage">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" class="hatch-line"/></pattern>
+  </defs></svg>
 
   <section class="slide s-cover" aria-label="Portada">
     <p class="kicker" data-r>Ford Innovation Challenge III<br>Data-Driven Powertrain Intelligence</p>
@@ -496,6 +637,35 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
     </div>
   </section>
 
+  <section class="slide s-act" aria-label="Cómo funciona por dentro">
+    <div data-r>
+      <h2 class="act">Cómo funciona por dentro</h2>
+      <p class="lead">Lo que hay detrás de cada número que vieron, y cómo nos aseguramos de que no sea un espejismo.</p>
+    </div>
+    <ol class="map" data-r>
+      <li>Datos<span>de CSV a vehículo-día</span></li>
+      <li>Variables<span>170, solo del pasado</span></li>
+      <li>Modelos<span>cuatro, más un stacking</span></li>
+      <li>Validación<span>por vehículo y en el tiempo</span></li>
+      <li>A bordo<span>el modelo en C</span></li>
+    </ol>
+  </section>
+
+  <section class="slide s-data" aria-label="Datos">
+    <h2 class="head" data-r>De 12 millones de registros a 284.678 días de vehículo.</h2>
+    <ol class="funnel" data-r>
+      <li><span class="num">12,4 M</span><b>registros crudos</b><p>2,52 M viajes y 9,9 M mensajes de la ECU, leídos con DuckDB.</p></li>
+      <li><span class="num">41.546</span><b>viajes descartados</b><p>40.760 duplicados y 786 imposibles: odómetro que retrocede, más de 200 km/h o más de 24 h.</p></li>
+      <li><span class="num">992</span><b>vehículos</b><p>277 con al menos un evento y 715 sanos. Los 27 que figuraban en ambas listas salen de los sanos.</p></li>
+      <li><span class="num">284.678</span><b>vehículo-días</b><p>Viajes y mensajes agregados por día local: la unidad sobre la que predice el modelo.</p></li>
+    </ol>
+    <div class="findings" data-r>
+      <div><b>La fecha de falla v1 era otra cosa</b><p>En el 76 % de las filas coincidía con los días hasta la venta. Etiquetamos solo con v2.</p></div>
+      <div><b>Reconstruimos el calendario</b><p>El primer viaje ocurre en planta: calza con la producción con 0,65 días de dispersión (p5 a p95).</p></div>
+      <div><b>Sensores con valores imposibles</b><p>Temperaturas de −73 y −128 °C pasan a nulo con rangos físicos por variable.</p></div>
+    </div>
+  </section>
+
   <section class="slide s-robust" aria-label="Robustez">
     <h2 class="head" data-r>Cuando una señal de la flota se cortó, el sistema siguió viendo.</h2>
     <div class="side" data-r>
@@ -511,18 +681,192 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
     <p class="foot" data-r>En producción las señales se cortan. Este sistema lo detecta y se recupera.</p>
   </section>
 
-  <section class="slide s-rigor" aria-label="Validación">
-    <h2 class="head" data-r>Evaluado como si ya estuviera funcionando en la flota.</h2>
+  <section class="slide s-feat" aria-label="Variables">
+    <h2 class="head" data-r>170 variables por día, calculadas solo con el pasado.</h2>
+    <figure data-r>
+      <figcaption class="chart-title">Qué mira el modelo el día de hoy</figcaption>
+      <svg id="c-windows" viewBox="0 0 780 400" width="780" height="400" role="img" aria-label="Ventanas móviles de 7, 30 y 90 días que terminan hoy, una línea base de la historia propia hasta hace 30 días, y el futuro excluido."></svg>
+    </figure>
+    <div class="fam" data-r>
+      <div><b>Uso</b><p>Viajes, km, proporción de viajes cortos, urbanos, en frío y en ralentí, ponderadas por viaje.</p></div>
+      <div><b>Tendencia</b><p>Ventana de 7 días menos la de 90: si el deterioro se acelera.</p></div>
+      <div><b>Desvío contra sí mismo</b><p>Cuánto se aleja hoy de su propia historia, sin incluir el último mes.</p></div>
+      <div><b>Ciclo del filtro</b><p>Km y días desde la última limpieza, limpiezas parciales y cortadas.</p></div>
+      <div><b>Tasas de vida</b><p>Cocientes que no crecen con la edad del vehículo.</p></div>
+    </div>
+    <p class="foot-note foot" data-r><b>Fuera del modelo: edad, odómetro y fecha.</b> Los vehículos con evento se produjeron desde 2023 y los sanos desde 2025; con esas variables aprendería "viejo es igual a falla". Un test automático recalcula todo con la historia cortada a la mitad y exige resultados idénticos.</p>
+  </section>
+
+  <section class="slide s-label" aria-label="Etiquetas">
+    <h2 class="head" data-r>Cada día se pregunta: ¿habrá evento en 30, 60 o 90 días?</h2>
+    <figure data-r>
+      <figcaption class="chart-title">Un vehículo con dos eventos, etiquetado a 90 días</figcaption>
+      <svg id="c-labels" viewBox="0 0 900 380" width="900" height="380" role="img" aria-label="Línea de tiempo de un vehículo: días negativos, 90 días positivos antes de cada evento, 14 días excluidos después de cada service y un tramo final censurado sin etiqueta."></svg>
+    </figure>
+    <div class="rates" data-r>
+      <div><span class="num">2,3&nbsp;%<small>a 30 días</small></span></div>
+      <div><span class="num">5,1&nbsp;%<small>a 60 días</small></span></div>
+      <div><span class="num">8,4&nbsp;%<small>a 90 días</small></span></div>
+      <p class="label">de días positivos. Un día solo cuenta como negativo si vimos los días siguientes completos; si no, no participa.</p>
+    </div>
+  </section>
+
+  <section class="slide s-split" aria-label="Protocolo de validación">
+    <h2 class="head" data-r>Cada decisión se tomó sin mirar el examen.</h2>
+    <figure data-r>
+      <svg id="c-split" viewBox="0 0 1376 330" width="1376" height="330" role="img" aria-label="992 vehículos: 794 de entrenamiento en 5 folds y 198 de holdout que nunca se usan para decidir. Abajo, la validación temporal con corte el 1 de enero de 2026."></svg>
+    </figure>
+    <div class="rules" data-r>
+      <div><b>Se parte por vehículo, no por fila</b><p>Los días de un mismo vehículo se parecen demasiado: partir por fila filtraría su identidad.</p></div>
+      <div><b>Todo se elige fuera de fold</b><p>Hiperparámetros, pesos del stacking y umbral de alerta salen de predicciones sobre vehículos no vistos.</p></div>
+      <div><b>Intervalos por vehículo</b><p>Bootstrap de vehículos completos, porque sus días están correlacionados.</p></div>
+    </div>
+  </section>
+
+  <section class="slide s-ens" aria-label="Ensamble">
+    <h2 class="head" data-r>Cuatro modelos que miran distinto, combinados por un quinto.</h2>
+    <figure data-r>
+      <svg id="c-ensemble" viewBox="0 0 1376 450" width="1376" height="450" role="img" aria-label="LightGBM, red GRU, bosque de supervivencia y autoencoder alimentan un stacking logístico con pesos 0,56, 0,23, 0,06 y 0,16 a 90 días. El stacking da el riesgo calibrado, que pasa por la política de alerta."></svg>
+    </figure>
+    <p class="small" data-r>El grosor de cada flecha es su peso en el stacking a 90 días, aprendido solo con predicciones fuera de fold. Además calibra las probabilidades: Brier 0,064 a 90 días.</p>
+  </section>
+
+  <section class="slide s-gbm" aria-label="LightGBM">
+    <h2 class="head" data-r>El motor principal: un LightGBM por horizonte, regularizado a propósito.</h2>
+    <div class="specs" data-r>
+      <div class="spec"><span class="num">600</span><p>árboles, tasa de aprendizaje 0,03</p></div>
+      <div class="spec"><span class="num">15</span><p>hojas por árbol</p></div>
+      <div class="spec hl"><span class="num">1.000</span><p>días como mínimo en cada hoja: nada de reglas a medida de un vehículo</p></div>
+      <div class="spec"><span class="num">50&nbsp;%</span><p>de las variables por árbol, 80 % de las filas, L2 = 10</p></div>
+    </div>
+    <figure data-r>
+      <figcaption class="chart-title">AUC a 90 días</figcaption>
+      <svg id="c-gap" viewBox="0 0 600 380" width="600" height="380" role="img" aria-label="AUC 0,99 en entrenamiento, 0,802 fuera de fold y 0,780 en holdout. Las 8 configuraciones probadas quedan entre 0,794 y 0,803."></svg>
+    </figure>
+    <p class="small foot" data-r>El 0,99 es memoria de vehículos ya vistos. Lo que importa: fuera de fold y holdout coinciden, así que generaliza a vehículos nuevos. La grilla de 8 configuraciones se evaluó solo con los folds de entrenamiento.</p>
+  </section>
+
+  <section class="slide s-gru" aria-label="Red neuronal">
+    <h2 class="head" data-r>Una red que lee 180 días de telemetría y estima el riesgo semana a semana.</h2>
+    <figure data-r>
+      <svg id="c-gru" viewBox="0 0 640 440" width="640" height="440" role="img" aria-label="Arquitectura: 180 días de 39 señales pasan por una capa lineal, una GRU de 64 y atención; las 170 variables del día con embeddings pasan por una capa lineal; ambas se unen en una cabeza de riesgo discreto a 26 semanas."></svg>
+    </figure>
+    <figure data-r>
+      <figcaption class="chart-title">AUC fuera de fold a 90 días, variante por variante</figcaption>
+      <svg id="c-nn" viewBox="0 0 660 380" width="660" height="380" role="img" aria-label="La AUC pasa de 0,713 con la GRU original a 0,756 con parada temprana y 5 semillas, 0,775 con 180 días, 0,777 y 0,781 con variables, y 0,778 con la cabeza de riesgo discreto, elegida por ser la mejor a 30 días con 0,827."></svg>
+    </figure>
+    <div class="notes" data-r>
+      <p class="small"><b>La cabeza de riesgo discreto</b> estima la probabilidad de evento en cada una de las próximas 26 semanas con la verosimilitud con censura. De ahí salen P(≤30, 60, 90 días), coherentes entre sí por construcción, y la vida útil restante.</p>
+      <p class="small"><b>El pre-entrenamiento auto-supervisado</b> mejoró fuera de fold (+0,017 de AUC) pero no en la validación temporal. El criterio era mejorar en ambas: no lo adoptamos.</p>
+    </div>
+  </section>
+
+  <section class="slide s-auc" aria-label="Discriminación">
+    <h2 class="head" data-r>Ordena bien el riesgo, y mejor cuanto más cerca está el evento.</h2>
+    <figure data-r>
+      <figcaption class="chart-title">AUC del ensamble por horizonte</figcaption>
+      <svg id="c-auc" viewBox="0 0 800 400" width="800" height="400" role="img" aria-label="AUC en holdout 0,829, 0,803 y 0,785 a 30, 60 y 90 días, con intervalos de confianza; fuera de fold 0,846, 0,819 y 0,809; dentro de vehículos que fallan 0,745, 0,705 y 0,675."></svg>
+    </figure>
+    <aside>
+      <div data-r><span class="num">9<small>&nbsp;veces</small></span><p class="label">la precisión del azar a 30 días: AP 0,20 contra una tasa base de 0,022</p></div>
+      <div data-r><span class="num">0,745</span><p class="label">de AUC solo entre vehículos que fallan: sabe <b>cuándo</b> se acerca el evento, no solo quién</p></div>
+      <div data-r><span class="num">0,667</span><p class="label">de C-index del modelo de supervivencia para la vida útil restante</p></div>
+    </aside>
+    <p class="small foot" data-r>198 vehículos de holdout con 56 eventos; intervalo del 95 % por bootstrap de vehículos. Fuera de fold y holdout coinciden.</p>
+  </section>
+
+  <section class="slide s-policy" aria-label="Política de alerta">
+    <h2 class="head" data-r>De una probabilidad a una alerta que el taller puede planificar.</h2>
+    <ol class="steps" data-r>
+      <li><b>Suavizar</b><p>Media de 7 días del riesgo a 90 días: un día raro no dispara nada.</p></li>
+      <li><b>Comparar con la flota</b><p>Alerta si el vehículo está en el 20 % de mayor riesgo de los últimos 30 días. Causal y sin etiquetas.</p></li>
+      <li><b>No repetir</b><p>30 días de enfriamiento: una alerta por episodio, no una por día.</p></li>
+    </ol>
+    <table class="pol" data-r>
+      <thead><tr><th scope="col">Política, en holdout</th><th scope="col">Detección (IC 95 %)</th><th scope="col">Anticipación mediana</th><th scope="col">Falsas alarmas por vehículo y año</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Advertencia actual de la ECU</th><td>55 % (43 a 68)</td><td>100 días, 4.313 km</td><td>0,60</td></tr>
+        <tr><th scope="row">Umbral fijo, 10 % de días sanos</th><td>86 % (75 a 95)</td><td>106 días, 3.368 km</td><td>0,63</td></tr>
+        <tr class="win"><th scope="row">Umbral relativo, top 20 % de la flota</th><td>89 % (80 a 96)</td><td>124 días, 4.492 km</td><td>0,61</td></tr>
+      </tbody>
+    </table>
+    <p class="small" data-r>El punto de operación se eligió fuera de fold: la mayor detección sin superar las falsas alarmas de la ECU. A igual tasa de falsas alarmas, fijo y relativo rinden parecido; el relativo además fija cuántos turnos pedir al taller.</p>
+  </section>
+
+  <section class="slide s-shap" aria-label="Qué pesa en el riesgo">
+    <h2 class="head" data-r>Lo que más pesa es cómo se usa el vehículo y cómo se limpia el filtro.</h2>
+    <figure data-r>
+      <figcaption class="chart-title">Peso de cada grupo en el riesgo, en % del |SHAP| total del LightGBM a 90 días</figcaption>
+      <svg id="c-shap" viewBox="0 0 820 440" width="820" height="440" role="img" aria-label="Patrón de uso 20 %, regeneraciones 19 %, vehículo y mercado 16 %, hollín 15 %, térmico 11 %, clima 7 %, consumo 5 %, aceite 5 %, otros 2 %."></svg>
+    </figure>
+    <aside>
+      <ul class="tops" data-r>
+        <li><b>Distancia mínima entre limpiezas</b> en 90 días</li>
+        <li><b>Hollín medio</b> contra la propia historia</li>
+        <li><b>Viajes cortos</b> contra la propia historia</li>
+        <li><b>Arranques en frío</b> en 90 días</li>
+      </ul>
+      <p class="small" data-r>Las variables de telemetría más fuertes. El país es la variable individual más influyente, pero sin vehículo y mercado el AUC dentro de fallados casi no cambia: el <b>cuándo</b> viene de la telemetría.</p>
+    </aside>
+  </section>
+
+  <section class="slide s-whatif" aria-label="Simulador de hábitos">
+    <h2 class="head" data-r>El simulador de hábitos tiene la física como restricción.</h2>
+    <div class="mono-col" data-r>
+      <h3>Si esto aumenta, el riesgo nunca baja</h3>
+      <ul><li>Viajes cortos, micro y urbanos</li><li>Viajes sin llegar a temperatura</li><li>Arranques en frío y ralentí</li><li>Limpiezas cortadas al apagar</li><li>Km y días desde la última limpieza</li></ul>
+    </div>
+    <div class="mono-col down" data-r>
+      <h3>Si esto aumenta, el riesgo nunca sube</h3>
+      <ul><li>Km por viaje</li><li>Velocidad media</li></ul>
+    </div>
+    <div class="price" data-r>
+      <span class="num">−0,009</span>
+      <p>de AUC es lo que cuesta (0,771 contra 0,780). A cambio, ninguna recomendación puede empeorar el riesgo simulado.</p>
+    </div>
+    <p class="small foot" data-r>Sin restricciones, el modelo aprendía del diseño de la muestra que "más ruta es más riesgo" y recomendaba lo contrario de lo correcto. Entrenado con 36 variables y estas restricciones, la receta mínima alcanza en el 85 % de los casos con margen por manejo.</p>
+  </section>
+
+  <section class="slide s-edge" aria-label="Modelo a bordo">
+    <h2 class="head" data-r>A bordo: 100 árboles de 7 hojas que caben en una ECU.</h2>
+    <div class="chip" data-r>
+      <div class="spec hl"><span class="num">290 B</span><p>de estado por vehículo: medias móviles exponenciales de 7 y 30 días</p></div>
+      <div class="spec"><span class="num">17 KB</span><p>de tablas del modelo en double; la mitad en float32</p></div>
+      <div class="spec"><span class="num">C99</span><p>sin memoria dinámica ni recursión; una llamada por día</p></div>
+      <div class="spec"><span class="num">9e−16</span><p>de diferencia máxima con Python en 19.534 días: alertas idénticas</p></div>
+    </div>
+    <figure data-r>
+      <figcaption class="chart-title">Detección de eventos, ECU actual contra el modelo compacto</figcaption>
+      <svg id="c-edge" viewBox="0 0 780 400" width="780" height="400" role="img" aria-label="Holdout: 55 % la ECU contra 77 % el modelo compacto. Futuro con vehículos nuevos: 53 % contra 58 %. Futuro con la misma flota: 43 % contra 65 %. El compacto tiene menos falsas alarmas en los tres casos."></svg>
+    </figure>
+    <p class="small foot" data-r>Sin 90 días de historia ni ranking de flota, el umbral es fijo y exige no superar a la ECU ni en falsas alarmas ni en días sanos en alerta. Cuesta 0,05 de AUC contra el sistema completo (0,78 a 0,73). Con vehículos nuevos en el futuro la ventaja (+6 puntos) está dentro del ruido.</p>
+  </section>
+
+  <section class="slide s-drift" aria-label="Validación temporal">
+    <h2 class="head" data-r>Hacia el futuro rinde menos: mitad por pocos eventos, mitad por deriva.</h2>
+    <figure data-r>
+      <figcaption class="chart-title">AUC a 90 días desde el 1 de enero de 2026, vehículos de holdout</figcaption>
+      <svg id="c-drift" viewBox="0 0 620 400" width="620" height="400" role="img" aria-label="Entrenado con todo el período, 0,767. Con solo 66 vehículos con evento, 0,715. Con solo lo conocido el 1 de enero, 0,653."></svg>
+    </figure>
+    <figure data-r>
+      <figcaption class="chart-title">Reentrenar recupera parte, en la flota ya monitoreada</figcaption>
+      <svg id="c-retrain" viewBox="0 0 620 400" width="620" height="400" role="img" aria-label="AUC a 90 días en la misma flota: 0,633 sin reentrenar, 0,672 con reentreno trimestral y 0,691 con reentreno mensual."></svg>
+    </figure>
+    <p class="small foot" data-r>Recortar filas no cuesta nada; recortar vehículos con evento a los 66 que había al corte cuesta 0,05. El resto es el período: la flota envejece y los eventos por 100 vehículos activos pasan de 1,3 a 8,6 por trimestre. El reentreno mensual suma +0,035 a +0,058 (IC 95 % excluye 0); en vehículos nuevos la palanca es acumular eventos.</p>
+  </section>
+
+  <section class="slide s-rigor" aria-label="Límites">
+    <h2 class="head" data-r>Lo que todavía no sabemos, y cómo lo vamos a medir.</h2>
     <div class="checks" data-r>
-      <div><b>198 vehículos que el modelo nunca vio</b><p>Ninguna decisión del diseño se tomó mirándolos.</p></div>
-      <div><b>Puesta en marcha simulada</b><p>Entrenado solo con lo que se sabía el 1 de enero de 2026 y evaluado después.</p></div>
-      <div><b>La ventaja se sostiene en el tiempo</b><p>64&nbsp;% contra 53&nbsp;% de la ECU en vehículos nuevos, con menos falsas alarmas. Más chica que en la prueba principal, y lo reportamos.</p></div>
-      <div><b>Reentreno mensual</b><p>Mejora de forma medible la precisión sobre la flota ya monitoreada.</p></div>
+      <div><b>56 eventos en el holdout</b><p>Por eso los intervalos son anchos (80 a 96 %). El modo sombra suma eventos reales cada mes.</p></div>
+      <div><b>El efecto del copiloto es simulado</b><p>El 85 % y el −47 % salen del modelo. El piloto aleatorizado mide si los eventos bajan de verdad.</p></div>
+      <div><b>El país pesa mucho</b><p>Puede reflejar cómo se armaron las listas de la muestra. El AUC dentro de fallados no depende de él.</p></div>
+      <div><b>Faltan señales</b><p>Los datos no traen GPS, presión de neumáticos ni carga del filtro en %. Son candidatas para la próxima versión.</p></div>
     </div>
     <figure data-r>
       <figcaption class="chart-title">Más vehículos con datos, mejor modelo</figcaption>
       <svg id="c-learn" viewBox="0 0 520 380" width="520" height="380" role="img" aria-label="La precisión del modelo, medida como AUC a 90 días, sube de 0,742 con 158 vehículos a 0,800 con 635, sin aplanarse."></svg>
-      <figcaption class="small">Precisión (AUC a 90 días) según los vehículos usados para entrenar. Cada duplicación suma unos 0,03.</figcaption>
+      <figcaption class="small">AUC a 90 días según los vehículos usados para entrenar. Cada duplicación suma unos 0,03 y la curva no se aplana: el cuello de botella son los vehículos, no los días.</figcaption>
     </figure>
   </section>
 
@@ -557,6 +901,7 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
         <tr><th scope="row">Concesionario</th><td>Demanda imprevista</td><td>Ranking diario y volumen de alertas acordado</td></tr>
       </tbody>
     </table>
+    <p class="small" data-r>El punto de operación se eligió fuera de fold: la mayor detección sin superar las falsas alarmas de la ECU. A igual tasa de falsas alarmas, fijo y relativo rinden parecido; el relativo además fija cuántos turnos pedir al taller.</p>
   </section>
 
   <section class="slide s-road" aria-label="Hoja de ruta">
@@ -755,6 +1100,297 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
     tip(el("circle", { cx: x(60), cy: y(ecu(.6)), r: 7, class: "dot base" }, svg), "60 %: USD 1,12 M con la advertencia actual");
     text(svg, x(60) + 16, (y(ours(.67)) + y(ecu(.67))) / 2 + 9, "+USD 0,74 M", "anno-accent").setAttribute("style", "font-size:24px");
   }
+
+  // ---------- Bloque técnico ----------
+  const box = (svg, x, y, w, h, lines, cls = "node") => {
+    el("rect", { x, y, width: w, height: h, rx: 12, class: cls }, svg);
+    const dark = cls !== "node";
+    const cy = y + h / 2 - (lines.length - 1) * 12;
+    lines.forEach((s, i) => text(svg, x + 20, cy + i * 24 + 6, s,
+      i === 0 ? (dark ? "on-dark" : "val") : (dark ? "on-dark-sub" : "tick")));
+  };
+  const arrowDefs = svg => {
+    const d = el("defs", {}, svg);
+    const mk = el("marker", { id: "arr-" + svg.id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, d);
+    el("path", { d: "M0,0L10,5L0,10Z", style: "fill:var(--base)" }, mk);
+    return `url(#arr-${svg.id})`;
+  };
+
+  // Ventanas móviles: solo pasado (src/features.py)
+  function chartWindows(svg) {
+    const W = 780, H = 400, m = { l: 12, r: 12, t: 30, b: 60 };
+    arrowDefs(svg);
+    const x = lin(-160, 45, m.l, W - m.r);
+    el("rect", { x: x(0), y: 60, width: x(45) - x(0), height: H - m.b - 60, class: "hatch-fill" }, svg);
+    text(svg, x(22), 22, "futuro", "anno", "middle");
+    text(svg, x(22), 46, "nunca entra", "tick", "middle");
+    [[90, 70], [30, 130], [7, 190]].forEach(([w, y], i) => {
+      el("rect", { x: x(-w), y, width: x(0) - x(-w), height: 42, rx: 4, class: "fill-accent grow-x", style: `--i:${i}` }, svg);
+      text(svg, x(-w) - 12, y + 28, `${w} días`, "val", "end");
+    });
+    el("rect", { x: x(-160), y: 262, width: x(-30) - x(-160), height: 42, rx: 4, class: "fill-base" }, svg);
+    text(svg, x(-160), 254, "historia propia hasta hace 30 días: base del desvío", "tick");
+    el("line", { x1: x(0), x2: x(0), y1: m.t - 10, y2: H - m.b, class: "event" }, svg);
+    el("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, class: "axis" }, svg);
+    for (const t of [-150, -120, -90, -60, -30, 0, 30]) text(svg, x(t), H - m.b + 28, t ? signed(t) : "hoy", "tick", "middle");
+    text(svg, (m.l + W - m.r) / 2, H - 4, "días respecto de hoy", "tick", "middle");
+  }
+
+  // Etiquetas con censura: y90, 14 días de exclusión tras el service, cola censurada
+  function chartLabels(svg) {
+    const W = 900, H = 380, y0 = 110, h = 64;
+    arrowDefs(svg);
+    const x = lin(0, 420, 0, W);
+    const seg = [[0, 70, "neg"], [70, 160, "fill-accent"], [160, 174, "hatch-fill"], [174, 210, "neg"],
+                 [210, 300, "fill-accent"], [300, 314, "hatch-fill"], [314, 330, "neg"], [330, 420, "muted-fill"]];
+    seg.forEach(([a, b, c]) => el("rect", { x: x(a), y: y0, width: x(b) - x(a), height: h, class: c }, svg));
+    el("rect", { x: x(330), y: y0, width: x(420) - x(330), height: h, class: "hatch-fill", style: "opacity:.35" }, svg);
+    for (const [e, s] of [[160, "evento 1 y service"], [300, "evento 2"]]) {
+      el("line", { x1: x(e), x2: x(e), y1: y0 - 40, y2: y0 + h + 10, class: "event" }, svg);
+      text(svg, x(e), y0 - 50, s, "anno", "middle");
+    }
+    el("line", { x1: x(420), x2: x(420), y1: y0 - 40, y2: y0 + h + 10, class: "event dashed" }, svg);
+    text(svg, x(420), y0 - 50, "fin de los datos", "tick", "end");
+    const leg = [["fill-accent", "positivo: evento en los próximos 90 días"], ["neg", "negativo: sin evento y 90 días observados"],
+                 ["hatch-fill", "excluido: 14 días después del service"], ["muted-fill", "censurado: no se sabe, no se usa"]];
+    leg.forEach(([c, s], i) => {
+      const lx = (i % 2) * 450, ly = 250 + Math.floor(i / 2) * 44;
+      el("rect", { x: lx, y: ly, width: 28, height: 22, rx: 3, class: c }, svg);
+      if (c === "muted-fill") el("rect", { x: lx, y: ly, width: 28, height: 22, rx: 3, class: "hatch-fill", style: "opacity:.35" }, svg);
+      text(svg, lx + 40, ly + 17, s, "tick");
+    });
+  }
+
+  // Partición por vehículo y validación temporal
+  function chartSplit(svg) {
+    const W = 1376;
+    const x = lin(0, 992, 0, W);
+    const fw = 794 / 5;
+    for (let k = 0; k < 5; k++) {
+      el("rect", { x: x(k * fw) + (k ? 2 : 0), y: 50, width: x(fw) - (k ? 2 : 0), height: 70, class: "fill-accent grow-x", style: `--i:${k};opacity:${1 - k * .1}` }, svg);
+      text(svg, x(k * fw + fw / 2), 92, `fold ${k + 1}`, "onbar", "middle").setAttribute("style", "font-size:18px;font-weight:650");
+    }
+    el("rect", { x: x(794) + 6, y: 50, width: x(198) - 6, height: 70, rx: 4, class: "node-deep" }, svg);
+    text(svg, x(893), 92, "198 de holdout", "on-dark", "middle");
+    text(svg, 0, 34, "794 vehículos de entrenamiento: validación cruzada agrupada por vehículo", "val");
+    text(svg, W, 34, "nunca se usan para decidir", "tick", "end");
+    // línea de tiempo del despliegue simulado
+    const t = lin(0, 20, 0, W), T = 14;
+    el("rect", { x: t(T - 3), y: 190, width: t(3) - t(0), height: 50, class: "band" }, svg);
+    el("line", { x1: 0, x2: W, y1: 240, y2: 240, class: "axis" }, svg);
+    el("rect", { x: 0, y: 214, width: t(T - 3), height: 26, class: "fill-base" }, svg);
+    el("rect", { x: t(T), y: 214, width: W - t(T), height: 26, class: "fill-accent" }, svg);
+    el("line", { x1: t(T), x2: t(T), y1: 180, y2: 250, class: "event" }, svg);
+    text(svg, t(T) + 10, 196, "T: 1 de enero de 2026", "anno");
+    text(svg, t(T - 1.5), 180, "calibra el umbral", "tick", "middle");
+    text(svg, 0, 270, "entrena solo con etiquetas conocidas antes de T", "tick");
+    text(svg, W, 270, "evalúa después de T", "tick", "end");
+    text(svg, 0, 310, "Validación temporal: el sistema puesto en marcha en una fecha, sin información del futuro.", "val");
+  }
+
+  // Ensamble y stacking (src/models.py, coeficientes a 90 días)
+  function chartEnsemble(svg) {
+    const mk = arrowDefs(svg);
+    const models = [
+      ["LightGBM", "las 170 variables del día", .564],
+      ["Red GRU con atención", "180 días de telemetría + variables", .229],
+      ["Bosque de supervivencia", "curva de supervivencia y vida útil", .055],
+      ["Autoencoder", "distancia a la flota sana: índice de salud", .158],
+    ];
+    const bw = 420, bh = 86, gap = 24, sx = 590, sy = 150, sw = 290, sh = 130;
+    models.forEach(([a, b, w], i) => {
+      const y = 12 + i * (bh + gap);
+      box(svg, 0, y, bw, bh, [a, b]);
+      const cy = y + bh / 2;
+      el("path", { d: `M${bw},${cy}C${bw + 90},${cy} ${sx - 90},${sy + sh / 2} ${sx - 4},${sy + sh / 2}`,
+        class: "flow-accent", style: `stroke-width:${2 + w * 22};opacity:.85` }, svg);
+      text(svg, bw - 20, cy + 8, fmt(w, 2), "anno-accent", "end").setAttribute("style", "font-size:26px");
+    });
+    box(svg, sx, sy, sw, sh, ["Stacking logístico", "entrenado solo con", "predicciones fuera de fold"], "node-deep");
+    const r1 = 960, r2 = 1180;
+    el("path", { d: `M${sx + sw + 6},${sy + sh / 2}H${r1 - 8}`, class: "flow", "marker-end": mk, style: "stroke-width:2.5" }, svg);
+    box(svg, r1, sy, 190, sh, ["Riesgo", "calibrado a 30,", "60 y 90 días"]);
+    el("path", { d: `M${r1 + 196},${sy + sh / 2}H${r2 - 8}`, class: "flow", "marker-end": mk, style: "stroke-width:2.5" }, svg);
+    box(svg, r2, sy, 196, sh, ["Alerta", "top 20 % de la", "flota, 30 días"], "node-accent");
+  }
+
+  // LightGBM: entrenamiento vs fuera de fold vs holdout (AUC 90 d)
+  function chartGap(svg) {
+    const W = 600, H = 380, m = { l: 64, r: 10, t: 30, b: 50 };
+    const y = lin(.5, 1, H - m.b, m.t);
+    for (const t of [.5, .6, .7, .8, .9, 1]) {
+      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t > .5 ? "grid" : "axis" }, svg);
+      text(svg, m.l - 12, y(t) + 6, fmt(t, 1), "tick", "end");
+    }
+    el("rect", { x: m.l, y: y(.803), width: W - m.l - m.r, height: y(.794) - y(.803), class: "band" }, svg);
+    const bars = [["entrenamiento", .99, "fill-base"], ["fuera de fold", .802, "fill-accent"], ["holdout", .780, "fill-accent"]];
+    const step = (W - m.l - m.r) / 3, bw = 110;
+    bars.forEach(([n, v, c], i) => {
+      const bx = m.l + i * step + (step - bw) / 2;
+      tip(el("path", { d: vbar(bx, y(v), bw, y(.5) - y(v)), class: c + " grow-y", style: `--i:${i}` }, svg), `${n}: ${fmt(v, 3)}`);
+      text(svg, bx + bw / 2, y(v) - 12, fmt(v, v > .9 ? 2 : 3), "val-strong", "middle");
+      text(svg, bx + bw / 2, H - m.b + 30, n, "tick", "middle");
+    });
+    text(svg, W - m.r, y(.96), "banda: las 8 configuraciones", "tick", "end");
+    text(svg, W - m.r, y(.96) + 26, "probadas, 0,794 a 0,803", "anno", "end");
+  }
+
+  // Arquitectura de la red (SeqNet)
+  function chartGRU(svg) {
+    const mk = arrowDefs(svg);
+    const down = (x, y1, y2) => el("path", { d: `M${x},${y1}V${y2 - 6}`, class: "flow", "marker-end": mk, style: "stroke-width:2.5" }, svg);
+    box(svg, 0, 0, 300, 76, ["180 días × 39 señales", "sumas en log, estandarizadas"]);
+    down(150, 76, 110);
+    box(svg, 0, 110, 300, 64, ["Lineal + GELU, GRU de 64"]);
+    down(150, 174, 208);
+    box(svg, 0, 208, 300, 64, ["Atención sobre los días"]);
+    box(svg, 340, 0, 300, 76, ["170 variables del día", "+ motor, serie y país"]);
+    down(490, 76, 110);
+    box(svg, 340, 110, 300, 64, ["Lineal + GELU (64)"]);
+    el("path", { d: `M150,272V300H320V318`, class: "flow", style: "stroke-width:2.5" }, svg);
+    el("path", { d: `M490,174V300H320`, class: "flow", style: "stroke-width:2.5" }, svg);
+    down(320, 300, 330);
+    box(svg, 0, 330, 640, 90, ["Cabeza de riesgo discreto", "probabilidad de evento en cada una de las próximas 26 semanas"], "node-accent");
+  }
+
+  // Experimentos de la red: AUC OOF a 90 d (README, "Red neuronal")
+  function chartNN(svg) {
+    const W = 660, H = 380, m = { l: 300, r: 40, t: 0, b: 76 };
+    const rows = [["GRU original, 60 días", .713], ["+ parada temprana y 5 semillas", .756], ["ventana de 180 días", .775],
+                  ["+ variables, 60 días", .777], ["+ variables, 180 días", .781], ["+ riesgo discreto (elegida)", .778]];
+    const x = lin(.70, .80, m.l, W - m.r), step = (H - m.t - m.b) / rows.length;
+    for (const t of [.70, .75, .80]) {
+      el("line", { x1: x(t), x2: x(t), y1: m.t, y2: H - m.b, class: t > .70 ? "grid" : "axis" }, svg);
+      text(svg, x(t), H - m.b + 28, fmt(t, 2), "tick", "middle");
+    }
+    rows.forEach(([n, v], i) => {
+      const cy = m.t + step * i + step / 2, last = i === rows.length - 1;
+      text(svg, m.l - 20, cy + 6, n, last ? "val" : "tick", "end");
+      el("line", { x1: x(.70), x2: x(v), y1: cy, y2: cy, class: "grid" }, svg);
+      tip(el("circle", { cx: x(v), cy, r: 8, class: "dot " + (last ? "accent" : "base") }, svg), `${n}: ${fmt(v, 3)}`);
+      text(svg, x(v) + 14, cy + 6, fmt(v, 3), last ? "val-strong" : "val");
+    });
+    text(svg, W - m.r, H - 4, "a 30 días, la elegida es la mejor: 0,827", "anno", "end");
+  }
+
+  // Discriminación por horizonte (README, holdout con IC95, OOF y dentro de fallados)
+  function chartAUC(svg) {
+    const W = 800, H = 400, m = { l: 64, r: 10, t: 60, b: 50 };
+    const y = lin(.6, .9, H - m.b, m.t);
+    for (const t of [.6, .7, .8, .9]) {
+      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t > .6 ? "grid" : "axis" }, svg);
+      text(svg, m.l - 12, y(t) + 6, fmt(t, 1), "tick", "end");
+    }
+    const d = [[30, .829, .78, .88, .846, .745], [60, .803, .76, .86, .819, .705], [90, .785, .74, .83, .809, .675]];
+    const step = (W - m.l - m.r) / 3;
+    d.forEach(([h, v, lo, hi, oof, wf], i) => {
+      const cx = m.l + step * i + step / 2;
+      el("line", { x1: cx - 60, x2: cx - 60, y1: y(lo), y2: y(hi), class: "whisker" }, svg);
+      for (const e of [lo, hi]) el("line", { x1: cx - 70, x2: cx - 50, y1: y(e), y2: y(e), class: "whisker" }, svg);
+      tip(el("circle", { cx: cx - 60, cy: y(v), r: 9, class: "dot accent" }, svg), `${h} días, holdout: ${fmt(v, 3)} (${fmt(lo, 2)} a ${fmt(hi, 2)})`);
+      text(svg, cx - 44, y(v) + 6, fmt(v, 3), "val-strong");
+      tip(el("circle", { cx: cx + 50, cy: y(oof), r: 8, class: "ring" }, svg), `${h} días, fuera de fold: ${fmt(oof, 3)}`);
+      tip(el("circle", { cx: cx + 50, cy: y(wf), r: 8, class: "dot base" }, svg), `${h} días, dentro de fallados: ${fmt(wf, 3)}`);
+      text(svg, cx + 64, y(wf) + 6, fmt(wf, 3), "tick");
+      text(svg, cx, H - m.b + 30, `${h} días`, "tick", "middle");
+    });
+    const lg = [["dot accent", "holdout, con IC 95 %"], ["ring", "fuera de fold"], ["dot base", "solo vehículos que fallan"]];
+    lg.forEach(([c, s], i) => {
+      const lx = m.l + i * 240;
+      el("circle", { cx: lx + 8, cy: 18, r: 8, class: c }, svg);
+      text(svg, lx + 24, 24, s, "tick");
+    });
+  }
+
+  // SHAP agrupado del LightGBM a 90 d (data/metrics.json, shap_by_group), en % del total
+  function chartShap(svg) {
+    const W = 820, H = 440, m = { l: 270, r: 60, t: 4, b: 4 };
+    const g = [["Patrón de uso", 1.014], ["Regeneraciones", .996], ["Vehículo y mercado", .813], ["Hollín y filtro", .764],
+               ["Térmico y arranques en frío", .546], ["Clima", .374], ["Consumo", .268], ["Aceite", .238], ["Otros", .104]];
+    const tot = g.reduce((a, [, v]) => a + v, 0);
+    const x = lin(0, 22, m.l, W - m.r), step = (H - m.t - m.b) / g.length, bh = step - 14;
+    g.forEach(([n, v], i) => {
+      const pct = v / tot * 100, by = m.t + i * step + 7, telem = n !== "Vehículo y mercado" && n !== "Otros";
+      text(svg, m.l - 16, by + bh / 2 + 6, n, "tick", "end");
+      tip(el("path", { d: hbar(x(0), by, x(pct) - x(0), bh), class: (i < 2 ? "fill-accent" : "fill-base") + " grow-x", style: `--i:${i}` }, svg), `${n}: ${fmt(pct, 1)} %`);
+      text(svg, x(pct) + 10, by + bh / 2 + 7, fmt(pct) + " %", i < 2 ? "val-strong" : "val");
+    });
+    el("line", { x1: x(0), x2: x(0), y1: 0, y2: H, class: "axis" }, svg);
+  }
+
+  // A bordo: detección ECU vs modelo compacto (README, "Alerta a bordo")
+  function chartEdge(svg) {
+    const W = 780, H = 400, m = { l: 10, r: 10, t: 40, b: 80 };
+    const d = [["Holdout", 55, 77, "0,60", "0,53"], ["Futuro,", 53, 58, "0,90", "0,74", "vehículos nuevos"], ["Futuro,", 43, 65, "0,88", "0,73", "misma flota"]];
+    const y = lin(0, 100, H - m.b, m.t), step = (W - m.l - m.r) / 3, bw = 84;
+    d.forEach(([n, e, c, fe, fc, n2], i) => {
+      const gx = m.l + i * step + step / 2;
+      [[e, "fill-base", fe, gx - bw - 6, "ECU"], [c, "fill-accent", fc, gx + 6, "Compacto"]].forEach(([v, cls, fa, bx, who], j) => {
+        tip(el("path", { d: vbar(bx, y(v), bw, y(0) - y(v)), class: cls + " grow-y", style: `--i:${i * 2 + j}` }, svg), `${n} ${n2 || ""}, ${who}: ${v} % de detección, ${fa} falsas alarmas por vehículo y año`);
+        text(svg, bx + bw / 2, y(v) - 12, v + " %", j ? "val-strong" : "val", "middle");
+        text(svg, bx + bw / 2, y(0) - 14, fa, "onbar", "middle");
+      });
+      text(svg, gx, H - m.b + 30, n, "tick", "middle");
+      if (n2) text(svg, gx, H - m.b + 52, n2, "tick", "middle");
+    });
+    el("line", { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), class: "axis" }, svg);
+    el("rect", { x: m.l, y: 4, width: 18, height: 18, rx: 3, class: "fill-base" }, svg);
+    text(svg, m.l + 28, 19, "ECU actual", "tick");
+    el("rect", { x: m.l + 170, y: 4, width: 18, height: 18, rx: 3, class: "fill-accent" }, svg);
+    text(svg, m.l + 198, 19, "Modelo compacto (en la base: falsas alarmas por vehículo y año)", "tick");
+  }
+
+  // Deriva: descomposición de la caída temporal (README, "¿Qué limita el desempeño?")
+  function chartDrift(svg) {
+    const W = 620, H = 400, m = { l: 64, r: 10, t: 30, b: 80 };
+    const y = lin(.6, .8, H - m.b, m.t);
+    for (const t of [.6, .65, .7, .75, .8]) {
+      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t > .6 ? "grid" : "axis" }, svg);
+      text(svg, m.l - 12, y(t) + 6, fmt(t, 2), "tick", "end");
+    }
+    const d = [["todo el período", "217 con evento", .6, .767, "fill-base"], ["menos eventos", "66 con evento", .715, .767, "gap"],
+               ["deriva del período", "solo lo conocido en T", .653, .715, "gap"], ["despliegue real", "", .6, .653, "fill-accent"]];
+    const step = (W - m.l - m.r) / 4, bw = 86;
+    d.forEach(([n, n2, lo, hi, c], i) => {
+      const bx = m.l + i * step + (step - bw) / 2;
+      el("rect", { x: bx, y: y(hi), width: bw, height: y(lo) - y(hi), rx: 3, class: c + " grow-y", style: `--i:${i}` + (c === "gap" ? ";opacity:.35" : "") }, svg);
+      const lbl = c === "gap" ? "−" + fmt(hi - lo, 3) : fmt(hi, 3);
+      text(svg, bx + bw / 2, (c === "gap" ? y(hi) - 12 : y(hi) - 12), lbl, c === "fill-accent" ? "val-strong" : "val", "middle");
+      text(svg, bx + bw / 2, H - m.b + 28, n, "tick", "middle").setAttribute("style", "font-size:15px");
+      if (n2) text(svg, bx + bw / 2, H - m.b + 50, n2, "tick", "middle").setAttribute("style", "font-size:15px");
+    });
+  }
+
+  // Reentreno, misma flota, AUC 90 d
+  function chartRetrain(svg) {
+    const W = 620, H = 400, m = { l: 64, r: 10, t: 30, b: 80 };
+    const y = lin(.6, .8, H - m.b, m.t);
+    for (const t of [.6, .65, .7, .75, .8]) {
+      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t > .6 ? "grid" : "axis" }, svg);
+      text(svg, m.l - 12, y(t) + 6, fmt(t, 2), "tick", "end");
+    }
+    const d = [["sin reentrenar", .633, "fill-base"], ["trimestral", .672, "fill-accent"], ["mensual", .691, "fill-accent"]];
+    const step = (W - m.l - m.r) / 3, bw = 110;
+    d.forEach(([n, v, c], i) => {
+      const bx = m.l + i * step + (step - bw) / 2;
+      tip(el("path", { d: vbar(bx, y(v), bw, y(.6) - y(v)), class: c + " grow-y", style: `--i:${i}` }, svg), `${n}: ${fmt(v, 3)}`);
+      text(svg, bx + bw / 2, y(v) - 12, fmt(v, 3), i === 2 ? "val-strong" : "val", "middle");
+      text(svg, bx + bw / 2, H - m.b + 28, n, "tick", "middle");
+    });
+  }
+
+  chartWindows(document.getElementById("c-windows"));
+  chartLabels(document.getElementById("c-labels"));
+  chartSplit(document.getElementById("c-split"));
+  chartEnsemble(document.getElementById("c-ensemble"));
+  chartGap(document.getElementById("c-gap"));
+  chartGRU(document.getElementById("c-gru"));
+  chartNN(document.getElementById("c-nn"));
+  chartAUC(document.getElementById("c-auc"));
+  chartShap(document.getElementById("c-shap"));
+  chartEdge(document.getElementById("c-edge"));
+  chartDrift(document.getElementById("c-drift"));
+  chartRetrain(document.getElementById("c-retrain"));
 
   chartSignal(document.getElementById("c-signal"));
   chartResult(document.getElementById("c-result"));
