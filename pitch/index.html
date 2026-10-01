@@ -375,6 +375,14 @@ svg .muted-fill { fill: var(--rule); }
 .s-act .map li { font-size: 24px; font-weight: 650; }
 .s-act .map span { display: block; font-size: 18px; font-weight: 500; margin-top: 6px; color: color-mix(in srgb, var(--on-deep) 70%, transparent); }
 
+/* Procesamiento y limpieza */
+.s-pipe { grid-template-rows: auto 1fr auto; row-gap: 32px; }
+.s-pipe .steps { row-gap: 22px; align-self: center; }
+.s-pipe .steps li { padding: 22px 26px; }
+.s-pipe .steps li::before { font-size: 34px; margin-bottom: 10px; }
+.s-pipe .steps p { font-size: 18px; }
+.s-act .map.map-3 { grid-template-columns: repeat(3, 1fr); }
+
 /* Datos */
 .s-data { grid-template-rows: auto 1fr auto; row-gap: 36px; }
 .funnel { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 28px; align-self: center; }
@@ -632,17 +640,20 @@ svg .muted-fill { fill: var(--rule); }
     </div>
   </section>
 
-  <section class="slide s-act" aria-label="Cómo funciona por dentro">
-    <div data-r>
-      <h2 class="act">Cómo funciona por dentro</h2>
-      <p class="lead">Lo que hay detrás de cada número que vieron, y cómo nos aseguramos de que no sea un espejismo.</p>
+  <section class="slide s-pipe" aria-label="Procesamiento y limpieza">
+    <div class="intro" data-r>
+      <p class="thread">Antes de los modelos</p>
+      <h2 class="head">Seis pasos para que los datos digan lo que realmente pasó.</h2>
     </div>
-    <ol class="map" data-r>
-      <li>Datos<span>de CSV a vehículo-día</span></li>
-      <li>Variables<span>170, solo del pasado</span></li>
-      <li>Modelos<span>cuatro, más un stacking</span></li>
-      <li>Validación<span>por vehículo y en el tiempo</span></li>
+    <ol class="steps" data-r>
+      <li><b>Leer</b><p>Tres fuentes por vehículo: datos de venta y producción, resumen de cada viaje y mensajes de la ECU. Todo con DuckDB, sin cargar los archivos en memoria.</p></li>
+      <li><b>Validar</b><p>Cada sensor tiene un rango físico: lo que cae afuera pasa a nulo. Se descartan los viajes imposibles: odómetro que retrocede, más de 200 km/h o más de 24 h.</p></li>
+      <li><b>Deduplicar</b><p>El mismo viaje llegaba repetido. Se conserva uno con un desempate fijo, así el resultado es idéntico en cualquier máquina.</p></li>
+      <li><b>Etiquetar</b><p>La fecha de falla sale de la lista v2. Un vehículo que figura como fallado en cualquier lista sale de los sanos.</p></li>
+      <li><b>Ubicar en el calendario</b><p>La fecha de producción se reconstruye desde el primer viaje, hecho en planta. Cada viaje pasa a hora local.</p></li>
+      <li><b>Reconstruir y agregar</b><p>Las limpiezas del filtro se detectan como caídas de hollín. Viajes y mensajes se resumen en una fila por vehículo y día.</p></li>
     </ol>
+    <p class="foot-note" data-r>Cada paso deja registrado qué descartó y por qué: el reporte de calidad se regenera en cada corrida.</p>
   </section>
 
   <section class="slide s-data" aria-label="Datos">
@@ -673,6 +684,18 @@ svg .muted-fill { fill: var(--rule); }
       <p class="body">de las limpiezas reales recuperadas, validado contra la señal original. Sumó 37&nbsp;% más casos para entrenar.</p>
     </div>
     <p class="foot" data-r>En producción las señales se cortan. Este sistema lo detecta y se recupera.</p>
+  </section>
+
+  <section class="slide s-act" aria-label="Cómo funciona por dentro">
+    <div data-r>
+      <h2 class="act">Cómo funciona por dentro</h2>
+      <p class="lead">Con los datos listos: lo que hay detrás de cada número que vieron, y cómo nos aseguramos de que no sea un espejismo.</p>
+    </div>
+    <ol class="map map-3" data-r>
+      <li>Variables<span>170, solo del pasado</span></li>
+      <li>Modelos<span>cuatro, más un stacking</span></li>
+      <li>Validación<span>por vehículo y en el tiempo</span></li>
+    </ol>
   </section>
 
   <section class="slide s-feat" aria-label="Variables">
