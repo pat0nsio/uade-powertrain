@@ -1,0 +1,8 @@
+# Mismos colores que pitch/index.html
+[theme]
+base = "light"
+primaryColor = "#2A46B8"
+backgroundColor = "#F3F4F0"
+secondaryBackgroundColor = "#E3E7F4"
+textColor = "#16181D"
+borderColor = "#D7D9D2"

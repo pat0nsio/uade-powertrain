@@ -13,17 +13,18 @@ from src.copilot import (MIN_MINS, WEEKS, completion, min_recipe, recipe_text, r
 from src.evaluate import group_of
 from src.features import feature_cols
 
-st.set_page_config("DPF Health Copilot", "🛠️", layout="wide")
+st.set_page_config("DPF Health Copilot", layout="wide")
 
-BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
+BLUE, ORANGE, AQUA = "#2a46b8", "#eb6834", "#1baf7a"  # BLUE = acento del pitch
 RED, GRAY = "#e34948", "#8a8984"
-STATUS = {"Alto": ("#d03b3b", "⛔"), "Medio": ("#fab219", "⚠️"), "Bajo": ("#0ca30c", "✅")}
+STATUS = {"Alto": "#d03b3b", "Medio": "#fab219", "Bajo": "#0ca30c"}
 GRID, AXIS, INK2 = "#e1e0d9", "#c3c2b7", "#52514e"
 
 
 def style(fig, h=320, **kw):
     fig.update_layout(template="plotly_white", height=h, margin=dict(l=10, r=10, t=40, b=10),
-                      font=dict(color=INK2), hovermode=kw.pop("hovermode", "x unified"),
+                      font=dict(color=INK2), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                      hovermode=kw.pop("hovermode", "x unified"),
                       legend=dict(orientation="h", y=1.12), **kw)
     fig.update_xaxes(gridcolor=GRID, linecolor=AXIS)
     fig.update_yaxes(gridcolor=GRID, linecolor=AXIS)
@@ -96,7 +97,7 @@ latest = p.sort_values("day").groupby("v").tail(1).merge(static[["v", "country",
     .merge(prof, on="v", how="left")
 latest["estado"] = [status(*r) for r in latest[["score_s", "thr_rel", "thr_rel_med"]].values]
 
-st.sidebar.title("🛠️ DPF Health Copilot")
+st.sidebar.title("DPF Health Copilot")
 st.sidebar.caption("Predicción temprana de degradación de combustión / DPF a partir de telemetría conectada.")
 view = st.sidebar.radio("Vista", ["Flota", "Vehículo", "Modelo y negocio", "Calidad de datos"])
 subset = st.sidebar.selectbox("Vehículos", ["Holdout (nunca vistos)", "Todos (OOF)"])
@@ -133,7 +134,6 @@ if view == "Flota":
         st.subheader("Ranking de riesgo (último día reportado)")
         tb = latest.sort_values("score_s", ascending=False)[
             ["v", "estado", "score_s", "health", "rul", "profile", "country", "ModelSeries", "day"]].copy()
-        tb["estado"] = tb["estado"].map(lambda s: f"{STATUS[s][1]} {s}")
         st.dataframe(tb.rename(columns={"v": "Vehículo", "score_s": "Riesgo 90d", "health": "Health Index",
                                         "rul": "RUL (días)", "profile": "Perfil", "country": "País",
                                         "ModelSeries": "Modelo", "day": "Último dato"}),
@@ -151,7 +151,7 @@ if view == "Flota":
         st.plotly_chart(style(fig, 260, hovermode="closest", xaxis_tickformat=".0%"), width="stretch")
         st.subheader("Vehículos por estado y país")
         ct = latest.groupby(["country", "estado"]).size().unstack(fill_value=0)
-        fig = go.Figure([go.Bar(name=f"{STATUS[s][1]} {s}", x=ct.index, y=ct.get(s, 0), marker_color=STATUS[s][0],
+        fig = go.Figure([go.Bar(name=s, x=ct.index, y=ct.get(s, 0), marker_color=STATUS[s],
                                 marker_line=dict(color="white", width=2)) for s in ["Alto", "Medio", "Bajo"]])
         st.plotly_chart(style(fig, 260, barmode="stack"), width="stretch")
 
@@ -171,7 +171,7 @@ elif view == "Vehículo":
 
     c = st.columns(5)
     s_ = status(cur["score_s"], cur["thr_rel"], cur["thr_rel_med"])
-    c[0].metric("Estado", f"{STATUS[s_][1]} {s_}")
+    c[0].metric("Estado", s_)
     c[1].metric("Riesgo evento 90 días", f"{cur['stack90']:.0%}")
     c[2].metric("Riesgo 30 días", f"{cur['stack30']:.0%}")
     c[3].metric("Health Index", f"{cur['health']:.0f}/100")

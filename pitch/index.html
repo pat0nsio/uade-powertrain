@@ -349,7 +349,7 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
 .s-close .ask { align-self: center; }
 .s-close .ask .head { font-size: 60px; letter-spacing: -0.02em; max-width: 26ch; }
 .s-close .ask .lead { margin-top: 22px; max-width: 46ch; }
-.recap { display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; border-top: 2px solid var(--ink); padding-top: 28px; }
+.recap { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; border-top: 2px solid var(--ink); padding-top: 28px; }
 .recap .num { font-size: 52px; }
 .recap .label { font-size: 19px; max-width: 21ch; }
 
@@ -371,7 +371,7 @@ svg .muted-fill { fill: var(--rule); }
 .s-act { background: var(--deep); color: var(--on-deep); grid-template-rows: 1fr auto; row-gap: 48px; }
 .s-act .act { align-self: end; font-size: 120px; line-height: .92; font-weight: 800; font-stretch: 125%; letter-spacing: -0.04em; max-width: 12ch; }
 .s-act .lead { color: color-mix(in srgb, var(--on-deep) 78%, transparent); margin-top: 28px; max-width: 44ch; }
-.s-act .map { list-style: none; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 2px solid color-mix(in srgb, var(--on-deep) 40%, transparent); padding-top: 22px; margin-bottom: 40px; }
+.s-act .map { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid color-mix(in srgb, var(--on-deep) 40%, transparent); padding-top: 22px; margin-bottom: 40px; }
 .s-act .map li { font-size: 24px; font-weight: 650; }
 .s-act .map span { display: block; font-size: 18px; font-weight: 500; margin-top: 6px; color: color-mix(in srgb, var(--on-deep) 70%, transparent); }
 
@@ -480,11 +480,6 @@ svg .muted-fill { fill: var(--rule); }
 .price p { font-size: 19px; line-height: 1.42; color: var(--ink-2); margin-top: 14px; }
 
 /* A bordo */
-.s-edge { grid-template-columns: 540px 1fr; grid-template-rows: auto 1fr auto; column-gap: 72px; row-gap: 28px; }
-.s-edge .head, .s-edge .foot { grid-column: 1 / -1; }
-.s-edge figure { align-self: center; }
-.chip { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-content: center; }
-.chip .spec .num { font-size: 44px; }
 
 /* Deriva */
 .s-drift { grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr auto; column-gap: 72px; row-gap: 28px; }
@@ -557,8 +552,8 @@ svg .muted-fill { fill: var(--rule); }
       <svg id="c-signal" viewBox="0 0 860 440" width="860" height="440" role="img" aria-label="Los mensajes de filtro sobre el límite pasan de 0,6 % a 2,4 % en los 90 días previos al evento y vuelven a 0,4 % después del service."></svg>
     </figure>
     <aside>
-      <div class="fact" data-r><span class="num">66 a 71<small>&nbsp;%</small></span><p class="label">de viajes de menos de 5 km en los meses previos al evento</p></div>
-      <div class="fact" data-r><span class="num">300 a 320<small>&nbsp;km</small></span><p class="label">entre una limpieza del filtro y la siguiente</p></div>
+      <div class="fact" data-r><span class="num">65 a 70<small>&nbsp;%</small></span><p class="label">de viajes de menos de 5 km en los meses previos al evento</p></div>
+      <div class="fact" data-r><span class="num">275 a 290<small>&nbsp;km</small></span><p class="label">entre una limpieza del filtro y la siguiente</p></div>
       <p class="small" data-r>Vehículos con evento, alineados en la fecha del evento. Después del service todo vuelve a la normalidad.</p>
     </aside>
   </section>
@@ -566,11 +561,11 @@ svg .muted-fill { fill: var(--rule); }
   <section class="slide s-result" aria-label="Resultado">
     <h2 class="head" data-r>Con las mismas falsas alarmas que la ECU, detecta muchos más eventos.</h2>
     <div class="big" data-r>
-      <span class="num"><span data-count="89">89</span><small>&nbsp;%</small></span>
+      <span class="num"><span data-count="88">88</span><small>&nbsp;%</small></span>
       <p class="label">de los eventos, detectados antes de que ocurran</p>
     </div>
     <figure class="bars" data-r>
-      <svg id="c-result" viewBox="0 0 800 330" width="800" height="330" role="img" aria-label="DPF Health Copilot detecta 89 % de los eventos, intervalo 80 a 96 %, con 0,61 falsas alarmas por vehículo y año. La advertencia actual de la ECU detecta 55 %, intervalo 43 a 68 %, con 0,60."></svg>
+      <svg id="c-result" viewBox="0 0 800 330" width="800" height="330" role="img" aria-label="DPF Health Copilot detecta 88 % de los eventos, intervalo 79 a 96 %, con 0,61 falsas alarmas por vehículo y año. La advertencia actual de la ECU detecta 55 %, intervalo 43 a 68 %, con 0,60."></svg>
     </figure>
     <p class="small foot" data-r>Medido en 198 vehículos que el modelo nunca vio, con 56 eventos. Las líneas finas son el intervalo de confianza del 95 %.</p>
   </section>
@@ -581,8 +576,8 @@ svg .muted-fill { fill: var(--rule); }
       <h2 class="head">En esta unidad, la alerta se encendió 129 días antes del evento.</h2>
     </div>
     <div class="pair">
-      <div data-r><span class="num">124<small>&nbsp;días</small></span><p class="label">de anticipación mediana en toda la flota, entre la primera alerta y el evento</p></div>
-      <div data-r><span class="num">4.492<small>&nbsp;km</small></span><p class="label">recorridos en ese margen (mediana de la flota): tiempo para agendar el turno o cambiar el hábito</p></div>
+      <div data-r><span class="num">125<small>&nbsp;días</small></span><p class="label">de anticipación mediana en toda la flota, entre la primera alerta y el evento</p></div>
+      <div data-r><span class="num">4.354<small>&nbsp;km</small></span><p class="label">recorridos en ese margen (mediana de la flota): tiempo para agendar el turno o cambiar el hábito</p></div>
     </div>
     <figure data-r>
       <figcaption class="chart-title">La unidad de Ibagué: riesgo de evento a 90 días</figcaption>
@@ -598,7 +593,7 @@ svg .muted-fill { fill: var(--rule); }
     </div>
     <figure data-r>
       <figcaption class="chart-title">Limpiezas que terminan antes de apagar el motor, según la duración del viaje</figcaption>
-      <svg id="c-regen" viewBox="0 0 820 420" width="820" height="420" role="img" aria-label="La limpieza termina en el 30 % de los viajes de menos de 5 minutos y en el 93 % de los de 20 minutos o más."></svg>
+      <svg id="c-regen" viewBox="0 0 820 420" width="820" height="420" role="img" aria-label="La limpieza termina en el 30 % de los viajes de menos de 5 minutos y entre el 93 y el 96 % de los de 20 minutos o más."></svg>
     </figure>
     <aside>
       <div class="notif" data-r>
@@ -607,7 +602,7 @@ svg .muted-fill { fill: var(--rule); }
       </div>
       <div class="minis" data-r>
         <div><span class="num">85&nbsp;%</span><p class="label">de las alertas con margen por manejo se resuelven con un cambio de hábito</p></div>
-        <div><span class="num">&minus;47&nbsp;%</span><p class="label">de riesgo mediano al seguir la recomendación</p></div>
+        <div><span class="num">&minus;46&nbsp;%</span><p class="label">de riesgo mediano al seguir la recomendación</p></div>
       </div>
       <p class="small" data-r>Efectos simulados con el modelo. El piloto propuesto los mide en la flota real.</p>
     </aside>
@@ -630,9 +625,9 @@ svg .muted-fill { fill: var(--rule); }
       <div class="cell edge" data-r>
         <div>
           <h3>Dentro del vehículo</h3>
-          <p>Versión en C para la ECU o el módulo telemático, sin conectividad. Detecta <b>77&nbsp;%</b> de los eventos contra 55&nbsp;% de la ECU actual. Solo informa: nunca actúa sobre el motor.</p>
+          <p>Una versión compacta del modelo en la ECU o el módulo telemático, para avisar aun sin conectividad. Solo informaría: nunca actuaría sobre el motor.</p>
         </div>
-        <span class="num">290 B<small>de memoria por vehículo</small></span>
+        <span class="num">A futuro<small>a definir con Ford</small></span>
       </div>
     </div>
   </section>
@@ -647,17 +642,16 @@ svg .muted-fill { fill: var(--rule); }
       <li>Variables<span>170, solo del pasado</span></li>
       <li>Modelos<span>cuatro, más un stacking</span></li>
       <li>Validación<span>por vehículo y en el tiempo</span></li>
-      <li>A bordo<span>el modelo en C</span></li>
     </ol>
   </section>
 
   <section class="slide s-data" aria-label="Datos">
-    <h2 class="head" data-r>De 12 millones de registros a 284.678 días de vehículo.</h2>
+    <h2 class="head" data-r>De 12 millones de registros a 282.378 días de vehículo.</h2>
     <ol class="funnel" data-r>
       <li><span class="num">12,4 M</span><b>registros crudos</b><p>2,52 M viajes y 9,9 M mensajes de la ECU, leídos con DuckDB.</p></li>
       <li><span class="num">41.546</span><b>viajes descartados</b><p>40.760 duplicados y 786 imposibles: odómetro que retrocede, más de 200 km/h o más de 24 h.</p></li>
       <li><span class="num">992</span><b>vehículos</b><p>277 con al menos un evento y 715 sanos. Los 27 que figuraban en ambas listas salen de los sanos.</p></li>
-      <li><span class="num">284.678</span><b>vehículo-días</b><p>Viajes y mensajes agregados por día local: la unidad sobre la que predice el modelo.</p></li>
+      <li><span class="num">282.378</span><b>vehículo-días</b><p>Viajes y mensajes agregados por día local: la unidad sobre la que predice el modelo.</p></li>
     </ol>
     <div class="findings" data-r>
       <div><b>La fecha de falla v1 era otra cosa</b><p>En el 76 % de las filas coincidía con los días hasta la venta. Etiquetamos solo con v2.</p></div>
@@ -726,7 +720,7 @@ svg .muted-fill { fill: var(--rule); }
   <section class="slide s-ens" aria-label="Ensamble">
     <h2 class="head" data-r>Cuatro modelos que miran distinto, combinados por un quinto.</h2>
     <figure data-r>
-      <svg id="c-ensemble" viewBox="0 0 1376 450" width="1376" height="450" role="img" aria-label="LightGBM, red GRU, bosque de supervivencia y autoencoder alimentan un stacking logístico con pesos 0,56, 0,23, 0,06 y 0,16 a 90 días. El stacking da el riesgo calibrado, que pasa por la política de alerta."></svg>
+      <svg id="c-ensemble" viewBox="0 0 1376 450" width="1376" height="450" role="img" aria-label="LightGBM, red GRU, bosque de supervivencia y autoencoder alimentan un stacking logístico con pesos 0,54, 0,24, 0,06 y 0,17 a 90 días. El stacking da el riesgo calibrado, que pasa por la política de alerta."></svg>
     </figure>
     <p class="small" data-r>El grosor de cada flecha es su peso en el stacking a 90 días, aprendido solo con predicciones fuera de fold. Además calibra las probabilidades: Brier 0,064 a 90 días.</p>
   </section>
@@ -765,11 +759,11 @@ svg .muted-fill { fill: var(--rule); }
     <h2 class="head" data-r>Ordena bien el riesgo, y mejor cuanto más cerca está el evento.</h2>
     <figure data-r>
       <figcaption class="chart-title">AUC del ensamble por horizonte</figcaption>
-      <svg id="c-auc" viewBox="0 0 800 400" width="800" height="400" role="img" aria-label="AUC en holdout 0,829, 0,803 y 0,785 a 30, 60 y 90 días, con intervalos de confianza; fuera de fold 0,846, 0,819 y 0,809; dentro de vehículos que fallan 0,745, 0,705 y 0,675."></svg>
+      <svg id="c-auc" viewBox="0 0 800 400" width="800" height="400" role="img" aria-label="AUC en holdout 0,827, 0,803 y 0,786 a 30, 60 y 90 días, con intervalos de confianza; fuera de fold 0,846, 0,820 y 0,810; dentro de vehículos que fallan 0,743, 0,704 y 0,677."></svg>
     </figure>
     <aside>
-      <div data-r><span class="num">9<small>&nbsp;veces</small></span><p class="label">la precisión del azar a 30 días: AP 0,20 contra una tasa base de 0,022</p></div>
-      <div data-r><span class="num">0,745</span><p class="label">de AUC solo entre vehículos que fallan: sabe <b>cuándo</b> se acerca el evento, no solo quién</p></div>
+      <div data-r><span class="num">9,5<small>&nbsp;veces</small></span><p class="label">la precisión del azar a 30 días: AP 0,21 contra una tasa base de 0,022</p></div>
+      <div data-r><span class="num">0,743</span><p class="label">de AUC solo entre vehículos que fallan: sabe <b>cuándo</b> se acerca el evento, no solo quién</p></div>
       <div data-r><span class="num">0,667</span><p class="label">de C-index del modelo de supervivencia para la vida útil restante</p></div>
     </aside>
     <p class="small foot" data-r>198 vehículos de holdout con 56 eventos; intervalo del 95 % por bootstrap de vehículos. Fuera de fold y holdout coinciden.</p>
@@ -786,8 +780,8 @@ svg .muted-fill { fill: var(--rule); }
       <thead><tr><th scope="col">Política, en holdout</th><th scope="col">Detección (IC 95 %)</th><th scope="col">Anticipación mediana</th><th scope="col">Falsas alarmas por vehículo y año</th></tr></thead>
       <tbody>
         <tr><th scope="row">Advertencia actual de la ECU</th><td>55 % (43 a 68)</td><td>100 días, 4.313 km</td><td>0,60</td></tr>
-        <tr><th scope="row">Umbral fijo, 10 % de días sanos</th><td>86 % (75 a 95)</td><td>106 días, 3.368 km</td><td>0,63</td></tr>
-        <tr class="win"><th scope="row">Umbral relativo, top 20 % de la flota</th><td>89 % (80 a 96)</td><td>124 días, 4.492 km</td><td>0,61</td></tr>
+        <tr><th scope="row">Umbral fijo, 10 % de días sanos</th><td>84 % (73 a 93)</td><td>105 días, 3.702 km</td><td>0,65</td></tr>
+        <tr class="win"><th scope="row">Umbral relativo, top 20 % de la flota</th><td>88 % (79 a 96)</td><td>125 días, 4.354 km</td><td>0,61</td></tr>
       </tbody>
     </table>
     <p class="small" data-r>El punto de operación se eligió fuera de fold: la mayor detección sin superar las falsas alarmas de la ECU. A igual tasa de falsas alarmas, fijo y relativo rinden parecido; el relativo además fija cuántos turnos pedir al taller.</p>
@@ -797,14 +791,14 @@ svg .muted-fill { fill: var(--rule); }
     <h2 class="head" data-r>Lo que más pesa es cómo se usa el vehículo y cómo se limpia el filtro.</h2>
     <figure data-r>
       <figcaption class="chart-title">Peso de cada grupo en el riesgo, en % del |SHAP| total del LightGBM a 90 días</figcaption>
-      <svg id="c-shap" viewBox="0 0 820 440" width="820" height="440" role="img" aria-label="Patrón de uso 20 %, regeneraciones 19 %, vehículo y mercado 16 %, hollín 15 %, térmico 11 %, clima 7 %, consumo 5 %, aceite 5 %, otros 2 %."></svg>
+      <svg id="c-shap" viewBox="0 0 820 440" width="820" height="440" role="img" aria-label="Regeneraciones 20 %, patrón de uso 19 %, hollín 15 %, vehículo y mercado 15 %, térmico 11 %, clima 7 %, consumo 5 %, aceite 5 %, otros 2 %."></svg>
     </figure>
     <aside>
       <ul class="tops" data-r>
-        <li><b>Distancia mínima entre limpiezas</b> en 90 días</li>
         <li><b>Hollín medio</b> contra la propia historia</li>
+        <li><b>Distancia mínima entre limpiezas</b> en 90 días</li>
+        <li><b>Vida mínima del aceite</b> en 90 días</li>
         <li><b>Viajes cortos</b> contra la propia historia</li>
-        <li><b>Arranques en frío</b> en 90 días</li>
       </ul>
       <p class="small" data-r>Las variables de telemetría más fuertes. El país es la variable individual más influyente, pero sin vehículo y mercado el AUC dentro de fallados casi no cambia: el <b>cuándo</b> viene de la telemetría.</p>
     </aside>
@@ -827,45 +821,30 @@ svg .muted-fill { fill: var(--rule); }
     <p class="small foot" data-r>Sin restricciones, el modelo aprendía del diseño de la muestra que "más ruta es más riesgo" y recomendaba lo contrario de lo correcto. Entrenado con 36 variables y estas restricciones, la receta mínima alcanza en el 85 % de los casos con margen por manejo.</p>
   </section>
 
-  <section class="slide s-edge" aria-label="Modelo a bordo">
-    <h2 class="head" data-r>A bordo: 100 árboles de 7 hojas que caben en una ECU.</h2>
-    <div class="chip" data-r>
-      <div class="spec hl"><span class="num">290 B</span><p>de estado por vehículo: medias móviles exponenciales de 7 y 30 días</p></div>
-      <div class="spec"><span class="num">17 KB</span><p>de tablas del modelo en double; la mitad en float32</p></div>
-      <div class="spec"><span class="num">C99</span><p>sin memoria dinámica ni recursión; una llamada por día</p></div>
-      <div class="spec"><span class="num">9e−16</span><p>de diferencia máxima con Python en 19.534 días: alertas idénticas</p></div>
-    </div>
-    <figure data-r>
-      <figcaption class="chart-title">Detección de eventos, ECU actual contra el modelo compacto</figcaption>
-      <svg id="c-edge" viewBox="0 0 780 400" width="780" height="400" role="img" aria-label="Holdout: 55 % la ECU contra 77 % el modelo compacto. Futuro con vehículos nuevos: 53 % contra 58 %. Futuro con la misma flota: 43 % contra 65 %. El compacto tiene menos falsas alarmas en los tres casos."></svg>
-    </figure>
-    <p class="small foot" data-r>Sin 90 días de historia ni ranking de flota, el umbral es fijo y exige no superar a la ECU ni en falsas alarmas ni en días sanos en alerta. Cuesta 0,05 de AUC contra el sistema completo (0,78 a 0,73). Con vehículos nuevos en el futuro la ventaja (+6 puntos) está dentro del ruido.</p>
-  </section>
-
   <section class="slide s-drift" aria-label="Validación temporal">
-    <h2 class="head" data-r>Hacia el futuro rinde menos: mitad por pocos eventos, mitad por deriva.</h2>
+    <h2 class="head" data-r>Hacia el futuro rinde menos: por pocos eventos y, sobre todo, por deriva.</h2>
     <figure data-r>
       <figcaption class="chart-title">AUC a 90 días desde el 1 de enero de 2026, vehículos de holdout</figcaption>
-      <svg id="c-drift" viewBox="0 0 620 400" width="620" height="400" role="img" aria-label="Entrenado con todo el período, 0,767. Con solo 66 vehículos con evento, 0,715. Con solo lo conocido el 1 de enero, 0,653."></svg>
+      <svg id="c-drift" viewBox="0 0 620 400" width="620" height="400" role="img" aria-label="Entrenado con todo el período, 0,761. Con solo 66 vehículos con evento, 0,714. Con solo lo conocido el 1 de enero, 0,637."></svg>
     </figure>
     <figure data-r>
       <figcaption class="chart-title">Reentrenar recupera parte, en la flota ya monitoreada</figcaption>
-      <svg id="c-retrain" viewBox="0 0 620 400" width="620" height="400" role="img" aria-label="AUC a 90 días en la misma flota: 0,633 sin reentrenar, 0,672 con reentreno trimestral y 0,691 con reentreno mensual."></svg>
+      <svg id="c-retrain" viewBox="0 0 620 400" width="620" height="400" role="img" aria-label="AUC a 90 días en la misma flota: 0,658 sin reentrenar, 0,686 con reentreno trimestral y 0,696 con reentreno mensual."></svg>
     </figure>
-    <p class="small foot" data-r>Recortar filas no cuesta nada; recortar vehículos con evento a los 66 que había al corte cuesta 0,05. El resto es el período: la flota envejece y los eventos por 100 vehículos activos pasan de 1,3 a 8,6 por trimestre. El reentreno mensual suma +0,035 a +0,058 (IC 95 % excluye 0); en vehículos nuevos la palanca es acumular eventos.</p>
+    <p class="small foot" data-r>Recortar filas no cuesta nada; recortar vehículos con evento a los 66 que había al corte cuesta 0,05. El resto, 0,08, es el período: la flota envejece y los eventos por 100 vehículos activos pasan de 1,3 a 8,6 por trimestre. El reentreno mensual suma +0,035 a +0,038 (IC 95 % excluye 0); en vehículos nuevos la palanca es acumular eventos.</p>
   </section>
 
   <section class="slide s-rigor" aria-label="Límites">
     <h2 class="head" data-r>Lo que todavía no sabemos, y cómo lo vamos a medir.</h2>
     <div class="checks" data-r>
-      <div><b>56 eventos en el holdout</b><p>Por eso los intervalos son anchos (80 a 96 %). El modo sombra suma eventos reales cada mes.</p></div>
-      <div><b>El efecto del copiloto es simulado</b><p>El 85 % y el −47 % salen del modelo. El piloto aleatorizado mide si los eventos bajan de verdad.</p></div>
+      <div><b>56 eventos en el holdout</b><p>Por eso los intervalos son anchos (79 a 96 %). El modo sombra suma eventos reales cada mes.</p></div>
+      <div><b>El efecto del copiloto es simulado</b><p>El 85 % y el −46 % salen del modelo. El piloto aleatorizado mide si los eventos bajan de verdad.</p></div>
       <div><b>El país pesa mucho</b><p>Puede reflejar cómo se armaron las listas de la muestra. El AUC dentro de fallados no depende de él.</p></div>
       <div><b>Faltan señales</b><p>Los datos no traen GPS, presión de neumáticos ni carga del filtro en %. Son candidatas para la próxima versión.</p></div>
     </div>
     <figure data-r>
       <figcaption class="chart-title">Más vehículos con datos, mejor modelo</figcaption>
-      <svg id="c-learn" viewBox="0 0 520 380" width="520" height="380" role="img" aria-label="La precisión del modelo, medida como AUC a 90 días, sube de 0,742 con 158 vehículos a 0,800 con 635, sin aplanarse."></svg>
+      <svg id="c-learn" viewBox="0 0 520 380" width="520" height="380" role="img" aria-label="La precisión del modelo, medida como AUC a 90 días, sube de 0,741 con 158 vehículos a 0,802 con 635, sin aplanarse."></svg>
       <figcaption class="small">AUC a 90 días según los vehículos usados para entrenar. Cada duplicación suma unos 0,03 y la curva no se aplana: el cuello de botella son los vehículos, no los días.</figcaption>
     </figure>
   </section>
@@ -874,7 +853,7 @@ svg .muted-fill { fill: var(--rule); }
     <h2 class="head" data-r>Entre USD 0,3 y 0,7 millones de ahorro adicional por año, cada 50.000 vehículos.</h2>
     <figure data-r>
       <figcaption class="chart-title">Ahorro neto por año, en millones de USD</figcaption>
-      <svg id="c-money" viewBox="0 0 860 420" width="860" height="420" role="img" aria-label="Con 60 % de eventos evitados, el ahorro neto es de 1,87 millones de USD con DPF Health Copilot contra 1,12 millones con la advertencia actual: 0,74 millones más por año."></svg>
+      <svg id="c-money" viewBox="0 0 860 420" width="860" height="420" role="img" aria-label="Con 60 % de eventos evitados, el ahorro neto es de 1,83 millones de USD con DPF Health Copilot contra 1,12 millones con la advertencia actual: 0,70 millones más por año."></svg>
     </figure>
     <div class="costs" data-r>
       <h3>Lo que cuesta</h3>
@@ -894,7 +873,7 @@ svg .muted-fill { fill: var(--rule); }
     <table class="cmp" data-r>
       <thead><tr><th scope="col"></th><th scope="col">Hoy</th><th scope="col">Con DPF Health Copilot</th></tr></thead>
       <tbody>
-        <tr><th scope="row">Eventos anticipados</th><td>55 %</td><td>89 %, con las mismas falsas alarmas</td></tr>
+        <tr><th scope="row">Eventos anticipados</th><td>55 %</td><td>88 %, con las mismas falsas alarmas</td></tr>
         <tr><th scope="row">Momento del aviso</th><td>Cuando el filtro ya está sobre el límite</td><td>Meses antes, cuando el patrón de uso empieza a cambiar</td></tr>
         <tr><th scope="row">Qué hace el cliente</th><td>Ir al taller</td><td>Un cambio de hábito concreto; el taller, solo si no alcanza</td></tr>
         <tr><th scope="row">Explicación</th><td>Un mensaje de estado</td><td>Qué hábitos pesan en el riesgo de su vehículo</td></tr>
@@ -910,7 +889,7 @@ svg .muted-fill { fill: var(--rule); }
       <li><p class="when">3 meses</p><h3>Modo sombra</h3><p>Corre sobre la flota real sin notificar y se compara con los eventos que ocurren.</p><p class="gate"><b>Avanza si</b> iguala o supera a la ECU.</p></li>
       <li><p class="when">6 meses</p><h3>Piloto con conductores</h3><p>Un grupo recibe recomendaciones y otro no, asignados al azar.</p><p class="gate"><b>Avanza si</b> baja la cantidad de eventos.</p></li>
       <li><p class="when">Continuo</p><h3>Flota completa en la nube</h3><p>Reentreno mensual automático y volumen de alertas acordado con los concesionarios.</p><p class="gate"><b>Sigue si</b> el desempeño es estable mes a mes.</p></li>
-      <li><p class="when">Ciclo de ECU</p><h3>Alerta a bordo</h3><p>Se instala por actualización remota firmada en módulos existentes.</p><p class="gate"><b>Avanza si</b> pasa la validación en banco y vehículo.</p></li>
+      <li><p class="when">A futuro</p><h3>Alerta a bordo</h3><p>Explorar con Ford una versión compacta dentro del vehículo.</p><p class="gate"><b>Avanza si</b> la arquitectura de la ECU lo permite.</p></li>
     </ol>
     <p class="body" data-r>El mismo método sirve para otras degradaciones que dejan rastro en la telemetría: EGR, catalizador, batería y aceite.</p>
   </section>
@@ -922,10 +901,9 @@ svg .muted-fill { fill: var(--rule); }
       <p class="lead" data-r>Empecemos con tres meses en modo sombra: sobre la flota real, sin notificar a nadie, comparando cada alerta con los eventos que ocurran.</p>
     </div>
     <div class="recap" data-r>
-      <div><span class="num">89&nbsp;%</span><p class="label">de eventos anticipados, contra 55&nbsp;% hoy</p></div>
-      <div><span class="num">4.492 km</span><p class="label">de margen mediano para actuar</p></div>
+      <div><span class="num">88&nbsp;%</span><p class="label">de eventos anticipados, contra 55&nbsp;% hoy</p></div>
+      <div><span class="num">4.354 km</span><p class="label">de margen mediano para actuar</p></div>
       <div><span class="num">USD 0,3 a 0,7 M</span><p class="label">de ahorro por año cada 50.000 vehículos</p></div>
-      <div><span class="num">290 B</span><p class="label">para correr dentro del vehículo</p></div>
     </div>
   </section>
 
@@ -979,7 +957,7 @@ svg .muted-fill { fill: var(--rule); }
     text(svg, (m.l + W - m.r) / 2, H - 6, "días respecto del evento", "tick", "middle");
     el("line", { x1: x(0), x2: x(0), y1: m.t, y2: H - m.b, class: "event" }, svg);
     text(svg, x(0) + 10, m.t + 18, "service", "tick");
-    const pts = [[-165, .58], [-135, .55], [-105, .85], [-75, 2.0], [-45, 2.42], [-15, 2.35], [15, .40], [45, .42], [75, .35]];
+    const pts = [[-165, .59], [-135, .55], [-105, .84], [-75, 1.99], [-45, 2.43], [-15, 2.35], [15, .37], [45, .40], [75, .36]];
     el("path", { d: "M" + pts.map(p => x(p[0]) + "," + y(p[1])).join("L"), class: "line accent draw", pathLength: 1 }, svg);
     pts.forEach(p => tip(el("circle", { cx: x(p[0]), cy: y(p[1]), r: 7, class: "dot accent" }, svg),
       `${signed(p[0] - 15)} a ${signed(p[0] + 15)} días: ${fmt(p[1], 2)} %`));
@@ -991,7 +969,7 @@ svg .muted-fill { fill: var(--rule); }
     const W = 800, m = { l: 0, r: 20 };
     const x = lin(0, 100, m.l, W - m.r);
     const rows = [
-      { name: "DPF Health Copilot", v: 89, lo: 80, hi: 96, fa: "0,61", cls: "fill-accent", y: 40 },
+      { name: "DPF Health Copilot", v: 88, lo: 79, hi: 96, fa: "0,61", cls: "fill-accent", y: 40 },
       { name: "Advertencia actual de la ECU", v: 55, lo: 43, hi: 68, fa: "0,60", cls: "fill-base", y: 200 },
     ];
     rows.forEach((r, i) => {
@@ -1004,7 +982,7 @@ svg .muted-fill { fill: var(--rule); }
       for (const e of [r.lo, r.hi]) el("line", { x1: x(e), x2: x(e), y1: r.y + 22, y2: r.y + 42, class: "whisker" }, svg);
     });
     el("line", { x1: x(0), x2: x(0), y1: 24, y2: 280, class: "axis" }, svg);
-    text(svg, W - m.r, 318, "+34 puntos con la misma tasa de falsas alarmas", "anno", "end");
+    text(svg, W - m.r, 318, "+32 puntos con la misma tasa de falsas alarmas", "anno", "end");
   }
 
   // Figura 5 del informe: riesgo a 90 días (media de 7 días) y umbral de la flota de un vehículo del holdout
@@ -1061,7 +1039,7 @@ svg .muted-fill { fill: var(--rule); }
   // Curva de aprendizaje del LightGBM (README, sección "¿Qué limita el desempeño?")
   function chartLearn(svg) {
     const W = 520, H = 380, m = { l: 64, r: 30, t: 30, b: 64 };
-    const pts = [[158, .742], [317, .771], [477, .788], [635, .800]];
+    const pts = [[158, .741], [317, .768], [477, .788], [635, .802]];
     const x = lin(Math.log2(158), Math.log2(635), m.l + 20, W - m.r - 20), y = lin(.72, .82, H - m.b, m.t);
     for (const t of [.72, .76, .80]) {
       el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t > .72 ? "grid" : "axis" }, svg);
@@ -1080,7 +1058,7 @@ svg .muted-fill { fill: var(--rule); }
   // USD 1.800 por evento, USD 200 por acción preventiva y USD 3 por notificación.
   function chartMoney(svg) {
     const W = 860, H = 420, m = { l: 64, r: 200, t: 24, b: 64 };
-    const ours = f => (2232 * 1800 * f - 32554 * 3 - 2232 * 200) / 1e6;
+    const ours = f => (2187.5 * 1800 * f - 32510 * 3 - 2187.5 * 200) / 1e6;
     const ecu = f => (1384 * 1800 * f - 31400 * 3 - 1384 * 200) / 1e6;
     const x = lin(20, 80, m.l, W - m.r), y = lin(0, 3, H - m.b, m.t);
     for (const t of [0, 1, 2, 3]) {
@@ -1096,9 +1074,9 @@ svg .muted-fill { fill: var(--rule); }
     text(svg, x(80) + 14, y(ours(.8)) + 6, "DPF Health Copilot", "val");
     text(svg, x(80) + 14, y(ecu(.8)) + 6, "Advertencia actual", "val");
     el("line", { x1: x(60), x2: x(60), y1: y(ours(.6)), y2: y(ecu(.6)), class: "whisker" }, svg);
-    tip(el("circle", { cx: x(60), cy: y(ours(.6)), r: 7, class: "dot accent" }, svg), "60 %: USD 1,87 M con DPF Health Copilot");
+    tip(el("circle", { cx: x(60), cy: y(ours(.6)), r: 7, class: "dot accent" }, svg), "60 %: USD 1,83 M con DPF Health Copilot");
     tip(el("circle", { cx: x(60), cy: y(ecu(.6)), r: 7, class: "dot base" }, svg), "60 %: USD 1,12 M con la advertencia actual");
-    text(svg, x(60) + 16, (y(ours(.67)) + y(ecu(.67))) / 2 + 9, "+USD 0,74 M", "anno-accent").setAttribute("style", "font-size:24px");
+    text(svg, x(60) + 16, (y(ours(.67)) + y(ecu(.67))) / 2 + 9, "+USD 0,70 M", "anno-accent").setAttribute("style", "font-size:24px");
   }
 
   // ---------- Bloque técnico ----------
@@ -1192,10 +1170,10 @@ svg .muted-fill { fill: var(--rule); }
   function chartEnsemble(svg) {
     const mk = arrowDefs(svg);
     const models = [
-      ["LightGBM", "las 170 variables del día", .564],
-      ["Red GRU con atención", "180 días de telemetría + variables", .229],
-      ["Bosque de supervivencia", "curva de supervivencia y vida útil", .055],
-      ["Autoencoder", "distancia a la flota sana: índice de salud", .158],
+      ["LightGBM", "las 170 variables del día", .544],
+      ["Red GRU con atención", "180 días de telemetría + variables", .237],
+      ["Bosque de supervivencia", "curva de supervivencia y vida útil", .060],
+      ["Autoencoder", "distancia a la flota sana: índice de salud", .165],
     ];
     const bw = 420, bh = 86, gap = 24, sx = 590, sy = 150, sw = 290, sh = 130;
     models.forEach(([a, b, w], i) => {
@@ -1281,7 +1259,7 @@ svg .muted-fill { fill: var(--rule); }
       el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t > .6 ? "grid" : "axis" }, svg);
       text(svg, m.l - 12, y(t) + 6, fmt(t, 1), "tick", "end");
     }
-    const d = [[30, .829, .78, .88, .846, .745], [60, .803, .76, .86, .819, .705], [90, .785, .74, .83, .809, .675]];
+    const d = [[30, .827, .78, .88, .846, .743], [60, .803, .76, .86, .820, .704], [90, .786, .74, .84, .810, .677]];
     const step = (W - m.l - m.r) / 3;
     d.forEach(([h, v, lo, hi, oof, wf], i) => {
       const cx = m.l + step * i + step / 2;
@@ -1305,8 +1283,8 @@ svg .muted-fill { fill: var(--rule); }
   // SHAP agrupado del LightGBM a 90 d (data/metrics.json, shap_by_group), en % del total
   function chartShap(svg) {
     const W = 820, H = 440, m = { l: 270, r: 60, t: 4, b: 4 };
-    const g = [["Patrón de uso", 1.014], ["Regeneraciones", .996], ["Vehículo y mercado", .813], ["Hollín y filtro", .764],
-               ["Térmico y arranques en frío", .546], ["Clima", .374], ["Consumo", .268], ["Aceite", .238], ["Otros", .104]];
+    const g = [["Regeneraciones", .988], ["Patrón de uso", .980], ["Hollín y filtro", .775], ["Vehículo y mercado", .768],
+               ["Térmico y arranques en frío", .545], ["Clima", .368], ["Consumo", .271], ["Aceite", .231], ["Otros", .104]];
     const tot = g.reduce((a, [, v]) => a + v, 0);
     const x = lin(0, 22, m.l, W - m.r), step = (H - m.t - m.b) / g.length, bh = step - 14;
     g.forEach(([n, v], i) => {
@@ -1318,28 +1296,6 @@ svg .muted-fill { fill: var(--rule); }
     el("line", { x1: x(0), x2: x(0), y1: 0, y2: H, class: "axis" }, svg);
   }
 
-  // A bordo: detección ECU vs modelo compacto (README, "Alerta a bordo")
-  function chartEdge(svg) {
-    const W = 780, H = 400, m = { l: 10, r: 10, t: 40, b: 80 };
-    const d = [["Holdout", 55, 77, "0,60", "0,53"], ["Futuro,", 53, 58, "0,90", "0,74", "vehículos nuevos"], ["Futuro,", 43, 65, "0,88", "0,73", "misma flota"]];
-    const y = lin(0, 100, H - m.b, m.t), step = (W - m.l - m.r) / 3, bw = 84;
-    d.forEach(([n, e, c, fe, fc, n2], i) => {
-      const gx = m.l + i * step + step / 2;
-      [[e, "fill-base", fe, gx - bw - 6, "ECU"], [c, "fill-accent", fc, gx + 6, "Compacto"]].forEach(([v, cls, fa, bx, who], j) => {
-        tip(el("path", { d: vbar(bx, y(v), bw, y(0) - y(v)), class: cls + " grow-y", style: `--i:${i * 2 + j}` }, svg), `${n} ${n2 || ""}, ${who}: ${v} % de detección, ${fa} falsas alarmas por vehículo y año`);
-        text(svg, bx + bw / 2, y(v) - 12, v + " %", j ? "val-strong" : "val", "middle");
-        text(svg, bx + bw / 2, y(0) - 14, fa, "onbar", "middle");
-      });
-      text(svg, gx, H - m.b + 30, n, "tick", "middle");
-      if (n2) text(svg, gx, H - m.b + 52, n2, "tick", "middle");
-    });
-    el("line", { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), class: "axis" }, svg);
-    el("rect", { x: m.l, y: 4, width: 18, height: 18, rx: 3, class: "fill-base" }, svg);
-    text(svg, m.l + 28, 19, "ECU actual", "tick");
-    el("rect", { x: m.l + 170, y: 4, width: 18, height: 18, rx: 3, class: "fill-accent" }, svg);
-    text(svg, m.l + 198, 19, "Modelo compacto (en la base: falsas alarmas por vehículo y año)", "tick");
-  }
-
   // Deriva: descomposición de la caída temporal (README, "¿Qué limita el desempeño?")
   function chartDrift(svg) {
     const W = 620, H = 400, m = { l: 64, r: 10, t: 30, b: 80 };
@@ -1348,8 +1304,8 @@ svg .muted-fill { fill: var(--rule); }
       el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t > .6 ? "grid" : "axis" }, svg);
       text(svg, m.l - 12, y(t) + 6, fmt(t, 2), "tick", "end");
     }
-    const d = [["todo el período", "217 con evento", .6, .767, "fill-base"], ["menos eventos", "66 con evento", .715, .767, "gap"],
-               ["deriva del período", "solo lo conocido en T", .653, .715, "gap"], ["despliegue real", "", .6, .653, "fill-accent"]];
+    const d = [["todo el período", "217 con evento", .6, .761, "fill-base"], ["menos eventos", "66 con evento", .714, .761, "gap"],
+               ["deriva del período", "solo lo conocido en T", .637, .714, "gap"], ["despliegue real", "", .6, .637, "fill-accent"]];
     const step = (W - m.l - m.r) / 4, bw = 86;
     d.forEach(([n, n2, lo, hi, c], i) => {
       const bx = m.l + i * step + (step - bw) / 2;
@@ -1369,7 +1325,7 @@ svg .muted-fill { fill: var(--rule); }
       el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t > .6 ? "grid" : "axis" }, svg);
       text(svg, m.l - 12, y(t) + 6, fmt(t, 2), "tick", "end");
     }
-    const d = [["sin reentrenar", .633, "fill-base"], ["trimestral", .672, "fill-accent"], ["mensual", .691, "fill-accent"]];
+    const d = [["sin reentrenar", .658, "fill-base"], ["trimestral", .686, "fill-accent"], ["mensual", .696, "fill-accent"]];
     const step = (W - m.l - m.r) / 3, bw = 110;
     d.forEach(([n, v, c], i) => {
       const bx = m.l + i * step + (step - bw) / 2;
@@ -1388,7 +1344,6 @@ svg .muted-fill { fill: var(--rule); }
   chartNN(document.getElementById("c-nn"));
   chartAUC(document.getElementById("c-auc"));
   chartShap(document.getElementById("c-shap"));
-  chartEdge(document.getElementById("c-edge"));
   chartDrift(document.getElementById("c-drift"));
   chartRetrain(document.getElementById("c-retrain"));
 

@@ -16,13 +16,13 @@ El plan anterior (mejoras de la red neuronal con GPU) está completo. Resultados
 
 ## ¿El límite son los datos? (hecho, `python -m src.diagnose temporal|learning|retrain|drift`)
 
-- **Caída temporal (0.78 → 0.65) = mitad falta de eventos, mitad deriva.** Recortar filas no cuesta nada; limitar a los
-  66 vehículos con evento que había en T cuesta ~0.05; el período, ~0.06 más. (Una primera versión del control igualaba
+- **Caída temporal (0.78 → 0.64) = ~40 % falta de eventos, ~60 % deriva.** Recortar filas no cuesta nada; limitar a los
+  66 vehículos con evento que había en T cuesta ~0.05; el período, ~0.08 más. (Una primera versión del control igualaba
   solo filas y concluía erróneamente que era todo deriva.)
 - **Curva de aprendizaje**: ~+0.03 AUC por duplicación de vehículos, sin aplanarse.
 - **Deriva**: las features cambian (adversarial AUC 0.88) pero quitarlas no ayuda; cambia la relación con el evento a
   medida que la flota envejece (eventos por 100 vehículos: 1.3 → 8.6 por trimestre).
-- **Reentreno mensual**: +0.035 a +0.058 AUC en la flota monitoreada; ≈0 en vehículos nuevos.
+- **Reentreno mensual**: +0.035 a +0.038 AUC en la flota monitoreada; ≈0 en vehículos nuevos.
 - Detalle: README, sección "¿Qué limita el desempeño?"; salidas `data/{temporal_decomp,learning_curve,retrain,drift}.json`.
 
 ## Próximos pasos sugeridos

@@ -3,8 +3,8 @@
 Predicción temprana de eventos de degradación de combustión / filtro de partículas (DPF) a partir de telemetría
 de vehículos conectados, con explicación por vehículo y **recomendaciones de manejo que bajan el riesgo**.
 
-> Con la misma tasa de falsas alarmas que la advertencia actual de la ECU, el sistema detecta el **89 %** de los eventos
-> antes de que ocurran (IC95 80–96 %), contra el **55 %** de la ECU (IC95 43–68 %). Medido en 198 vehículos que el
+> Con la misma tasa de falsas alarmas que la advertencia actual de la ECU, el sistema detecta el **88 %** de los eventos
+> antes de que ocurran (IC95 79–96 %), contra el **55 %** de la ECU (IC95 43–68 %). Medido en 198 vehículos que el
 > modelo nunca vio, con la política de alerta elegida sin mirar esos vehículos. La validación temporal (sección propia)
 > muestra que la ventaja se mantiene hacia el futuro, pero más chica.
 
@@ -14,13 +14,13 @@ de vehículos conectados, con explicación por vehículo y **recomendaciones de 
 uv venv .venv --python 3.12
 uv pip install --python .venv -r requirements.txt   # torch CPU: --index-url https://download.pytorch.org/whl/cpu
 # datasets en ./Datasets (estructura original del .zip)
-.venv/bin/python -m src.data            # carga + limpieza + regeneraciones reconstruidas (≈20 s) -> data/quality.json
-.venv/bin/python -m src.features        # 170 features + etiquetas + test anti-leakage (≈15 s)
+.venv/bin/python -m src.data            # carga + limpieza + regeneraciones reconstruidas (≈10 s) -> data/quality.json
+.venv/bin/python -m src.features        # 170 features + etiquetas + test anti-leakage (≈10 s)
 .venv/bin/python -m src.models tune     # (opcional) rehace la búsqueda de hiperparámetros del GBM (≈10 min); el
                                         # resultado vigente está versionado en models/gbm_params.json
-.venv/bin/python -m src.models          # ensamble 5 folds + holdout + modelo what-if (≈15 min con GPU)
-.venv/bin/python -m src.evaluate        # métricas con IC, lead time vs ECU, SHAP, perfiles
-.venv/bin/python -m src.temporal        # validación temporal (despliegue simulado el 2026-01-01)
+.venv/bin/python -m src.models          # ensamble 5 folds + holdout + modelo what-if (≈17 min con GPU)
+.venv/bin/python -m src.evaluate        # métricas con IC, lead time vs ECU, SHAP, perfiles (≈1 min)
+.venv/bin/python -m src.temporal        # validación temporal (despliegue simulado el 2026-01-01) (≈1.5 min)
 .venv/bin/python -m src.copilot         # chequeos + resumen de receta mínima y ventana de regeneración
 .venv/bin/python -m src.edge            # alerta a bordo: reglas y modelos compactos vs ECU -> data/edge.json
 .venv/bin/python -m src.edge export     # genera edge/dpf_edge_model.h, compila el C y verifica paridad
@@ -32,6 +32,9 @@ xdg-open pitch/index.html               # presentación (sin servidor ni interne
 .venv/bin/python -m src.temporal nn <tag> seq=180 tab=1 head=hazard pre=0   # la misma red en validación temporal
 .venv/bin/python -m src.data v1         # solo para pre=1: agrega los 297 fallados exclusivos de v1 (sin etiqueta)
 ```
+
+Corrida completa medida (2026-10-01, Radeon RX 6650 XT): `src.data` a `src.temporal nn final` en 23 min, con datos,
+métricas y validación temporal idénticos a la corrida anterior.
 
 Los recursos por máquina se configuran en `config.local.json` (no versionado; valores por defecto y documentación en
 `src/config.py`). Para empezar: `cp config.local.ejemplo.json config.local.json` y ajustar. Cada sección es opcional. DuckDB está limitado por defecto a 4 GB y 4 hilos: sin límite, las consultas
@@ -75,8 +78,10 @@ desde `https://download.pytorch.org/whl/rocm7.2`.
    los casos. Se usa la versión v2 (`IdentificationDaysSinceProduction`).
 2. **Reconstrucción del calendario**: el primer viaje de cada vehículo (en planta) coincide con `D0 + ProductionDay`
    con dispersión p5–p95 de 0.65 días. Eso permite ubicar cada evento en el calendario y alinear la telemetría.
-3. **Señal anticipatoria real**: en los 90 días previos al evento los mensajes de DPF "Over Limit/Overloaded" pasan de
-   ~0.5 % a ~2.5–2.9 % y las regeneraciones exitosas caen ~40 %; después del service todo vuelve a la normalidad.
+3. **Señal anticipatoria real**: alineando cada vehículo en su primer evento, los mensajes de DPF "Over Limit/Overloaded"
+   pasan de ~0.6 % de los mensajes a ~2.4 % en los 90 días previos y vuelven a ~0.4 % después del service. Las
+   regeneraciones reconstruidas por km casi no cambian antes del evento (3.5–3.6 por 1000 km) y suben después del
+   service (4.0–4.6): lo que anticipa es la saturación, no que dejen de ocurrir limpiezas.
 4. **Corte de telemetría en el origen, y cómo se recuperó**: desde el 2026-05-26 no llega **ningún** evento
    `Regenerations` en toda la flota, y la bandera ya venía perdiendo eventos desde marzo (1.5–1.9 por 1000 km contra
    ~2.5 reales). Usada tal cual, el riesgo de los sanos subía artificialmente de 4 % a 41 %.
@@ -97,9 +102,9 @@ IC 95 % por bootstrap remuestreando **vehículos** (las filas de un mismo vehíc
 
 | Horizonte | AUC holdout (IC95) | AP holdout (base) | AUC fuera de fold (train) | AUC dentro de fallados* |
 |---|---|---|---|---|
-| 30 días | 0.829 (0.78–0.88) | 0.201 (0.022) | 0.846 | 0.745 |
-| 60 días | 0.803 (0.76–0.86) | 0.285 (0.048) | 0.819 | 0.705 |
-| 90 días | 0.785 (0.74–0.83) | 0.314 (0.079) | 0.809 | 0.675 |
+| 30 días | 0.827 (0.78–0.88) | 0.206 (0.022) | 0.846 | 0.743 |
+| 60 días | 0.803 (0.76–0.86) | 0.289 (0.048) | 0.820 | 0.704 |
+| 90 días | 0.786 (0.74–0.84) | 0.320 (0.079) | 0.810 | 0.677 |
 
 \* Solo vehículos que fallan: mide si el modelo sabe *cuándo* se acerca el evento, sin poder apoyarse en diferencias
 entre cohortes. C-index del modelo de supervivencia: 0.667.
@@ -117,22 +122,22 @@ Se comparan dos políticas de alerta:
 | | Detección (IC95) | Anticipación mediana (IC95 km) | Falsas alarmas / vehículo-año |
 |---|---|---|---|
 | Advertencia ECU actual | 55 % (43–68 %) | 100 días · 4 313 km (2 214–7 131) | 0.60 |
-| Umbral fijo (10 % de días-sanos) | 86 % (75–95 %) | 106 días · 3 368 km (2 241–4 984) | 0.63 |
-| **Umbral relativo (top 20 % de la flota)** | **89 % (80–96 %)** | 124 días · 4 492 km (3 322–6 445) | **0.61** |
+| Umbral fijo (10 % de días-sanos) | 84 % (73–93 %) | 105 días · 3 702 km (2 521–5 435) | 0.65 |
+| **Umbral relativo (top 20 % de la flota)** | **88 % (79–96 %)** | 125 días · 4 354 km (3 307–6 513) | **0.61** |
 
 La anticipación en km es lo recorrido entre la primera alerta y el evento (suma de los km diarios de los viajes), en los
 eventos detectados.
 
-La misma comparación fuera de fold (237 eventos de train) da 88 % (fijo) y 90 % (relativo) contra 53 % de la ECU. La ventaja es en **cuántos** eventos se
+La misma comparación fuera de fold (237 eventos de train) da 88 % (fijo) y 92 % (relativo) contra 53 % de la ECU. La ventaja es en **cuántos** eventos se
 detectan; en **anticipación** (días o km) no hay diferencia.
 
 **Qué pesa en el riesgo** (SHAP agrupado): regeneraciones ≈ patrón de uso > hollín ≈ vehículo/mercado > térmico/arranques en frío.
 
 ## Copiloto del conductor: qué cambiar y cuándo
 
-**Qué viaje sirve para regenerar (medido, no supuesto).** De los 1 857 viajes que arrancan con una regeneración en
+**Qué viaje sirve para regenerar (medido, no supuesto).** De los 1 670 viajes que arrancan con una regeneración en
 curso, la limpieza termina antes de apagar el motor en el 30 % de los de menos de 5 min, 78 % de los de 15–20 min y
-**93 % de los de 20 min o más**; la velocidad casi no cambia la tasa. "Trayecto apto" = 20 min o más.
+**93–96 % de los de 20 min o más**; la velocidad casi no cambia la tasa. "Trayecto apto" = 20 min o más.
 
 - **Receta mínima**: recorre las combinaciones del simulador (trayectos de ruta por semana, menos viajes cortos, no
   cortar la limpieza) y elige la de menor esfuerzo que lleva el riesgo del GBM monótono por debajo del umbral de la
@@ -141,10 +146,11 @@ curso, la limpieza termina antes de apagar el motor en el 30 % de los de menos d
   suele hacer un trayecto apto. Si hay uno habitual, el consejo es no acortarlo; si solo hay viajes de 10–20 min,
   estirarlos; si no hay ninguno, planificar uno.
 
-En el primer día de alerta de los 118 vehículos del holdout que entran en alerta (52 con evento):
+En el primer día de alerta de los 119 vehículos del holdout que entran en alerta (52 con evento):
 - La receta alcanza en el 85 % de los casos con margen de mejora por manejo, con una reducción mediana del riesgo del
-  47 %. En el 23 % el modelo de hábitos no ve margen (el riesgo no viene del manejo reciente): va al concesionario.
-- El 58 % no tiene ningún trayecto de 20+ min habitual en la semana; el 39 % sí (la ventana indica cuándo).
+  46 %. En el 22 % el modelo de hábitos no ve margen (el riesgo no viene del manejo reciente): va al concesionario.
+- El 55 % no tiene ningún trayecto de 20+ min habitual en la semana; el 42 % sí (la ventana indica cuándo) y el 3 % solo
+  tiene viajes de 10–20 min para estirar.
 
 Son simulaciones con el modelo, no efectos causales medidos: validar que las recomendaciones evitan eventos requiere
 un piloto con intervención.
@@ -186,7 +192,7 @@ entrenado solo con lo conocido en T−90 y considerando "sano" a todo vehículo 
 | Misma flota (194 eventos) | 0.72 (0.69–0.76) | 0.66 (0.63–0.69) | 43 % / 0.88 | 49 % / 0.40 | 38 % / 0.28 |
 
 **Lectura honesta**:
-- Hacia el futuro el desempeño cae (AUC 90 d de ~0.78 a ~0.65), así que el holdout por vehículo es optimista:
+- Hacia el futuro el desempeño cae (AUC 90 d de ~0.78 a ~0.64), así que el holdout por vehículo es optimista:
   comparte estacionalidad y período con el entrenamiento.
 - **A igual tasa de falsas alarmas, fijo y relativo rinden parecido** (con ~0.8 falsas alarmas/año: 61 % vs 67 % en
   vehículos nuevos, 70 % vs 68 % en la misma flota). El umbral relativo no cambia el orden de riesgo, solo cuántas
@@ -210,7 +216,7 @@ entrenado solo con lo conocido en T−90 y considerando "sano" a todo vehículo 
   embeddings de motor, serie y país) con **cabeza de riesgo discreto**: hazard semanal a 26 semanas entrenado con la
   verosimilitud con censura, del que salen P(≤30/60/90 d), coherentes por construcción, y el RUL. Parada temprana por
   AP en un 15 % de vehículos de validación y promedio de 5 semillas (la dispersión entre semillas queda en
-  `gru{H}_std`). AUC holdout 0.823 / 0.798 / 0.782: **iguala al LightGBM** (antes 0.72). La atención muestra qué días
+  `gru{H}_std`). AUC holdout 0.820 / 0.799 / 0.786: **iguala al LightGBM** (antes 0.72). La atención muestra qué días
   empujaron el riesgo.
 - **Autoencoder** entrenado solo con vehículos sanos: su error de reconstrucción es el **Health Index** (0–100).
 - **Stacking** logístico sobre las predicciones fuera de fold: calibrado, Brier 0.064 a 90 d.
@@ -245,30 +251,30 @@ línea base (se corrieron antes de regenerar los datos, por eso difieren en la t
 - **Validación temporal de la red** (AUC 30 / 60 / 90 d; entre paréntesis el LightGBM): vehículos nuevos
   0.697 / 0.667 / 0.602 (0.719 / 0.666 / 0.637); misma flota 0.718 / 0.694 / 0.660 (0.724 / 0.693 / 0.658).
   La GRU con parada temprana (60 d, sin features) daba 0.657 / 0.650 / 0.627 y 0.695 / 0.669 / 0.638.
-- **Efecto en el ensamble: chico.** El peso de la red en el stacking final sube a 0.41 / 0.32 / 0.23, pero el stack
-  mejora poco: ΔAUC de a pares +0.003 / +0.002 / +0.000 en OOF (dentro del ruido) y +0.012 / +0.012 / +0.008 en holdout.
-  La red aprendió casi lo mismo que el LightGBM.
+- **Efecto en el ensamble: chico.** El peso de la red en el stacking final sube a 0.35 / 0.30 / 0.24, pero el stack
+  mejora poco: ΔAUC de a pares contra el mismo stack sin la red +0.007 / +0.004 / +0.002 en OOF (IC95 incluye 0) y
+  +0.008 / +0.008 / +0.009 en holdout. La red aprendió casi lo mismo que el LightGBM.
 
 ## ¿Qué limita el desempeño? (`python -m src.diagnose temporal|learning|retrain|drift`)
 
-**1. La caída temporal es mitad falta de eventos, mitad deriva.** LightGBM, AUC a 90 d en los vehículos del holdout:
+**1. La caída temporal es ~40 % falta de eventos y ~60 % deriva.** LightGBM, AUC a 90 d en los vehículos del holdout:
 
 | Entrenado con… | Vehículos con evento | Evalúa antes de T | Evalúa desde T |
 |---|---|---|---|
-| todo el período | 217 | 0.788 | 0.767 |
-| todo, 28 % de las filas (mismas filas y positivos que "antes de T") | ~217 | 0.794 | 0.771 |
-| todo, pero solo 66 vehículos con evento | 66 | 0.734 | 0.715 |
-| solo lo conocido en T (despliegue real) | 66 | 0.770 | **0.653** |
+| todo el período | 217 | 0.787 | 0.761 |
+| todo, 28 % de las filas (mismas filas y positivos que "antes de T") | ~217 | 0.791 | 0.776 |
+| todo, pero solo 66 vehículos con evento | 66 | 0.743 | 0.714 |
+| solo lo conocido en T (despliegue real) | 66 | 0.777 | **0.637** |
 
 - Recortar **filas** no cuesta nada; recortar **vehículos con evento** a los 66 que había en T cuesta ~0.05.
-- El resto (~0.06) es el período: con los mismos 66 vehículos con evento, entrenar solo con datos anteriores a T rinde
-  menos después de T (ΔAUC −0.063 [−0.129, +0.007] a 90 d; −0.071 [−0.135, −0.005] a 60 d).
+- El resto (~0.08) es el período: con los mismos 66 vehículos con evento, entrenar solo con datos anteriores a T rinde
+  menos después de T (ΔAUC −0.078 [−0.148, −0.005] a 90 d; −0.081 [−0.152, −0.019] a 60 d).
 - Por eso la validación temporal es **pesimista para el modelo actual**: en T había 66 vehículos con evento en train;
   hoy hay 217.
 
 **Origen de la deriva.** Las features cambian mucho entre períodos (un clasificador distingue días antes/después de T
 con AUC 0.88: vida de aceite, desvíos respecto de la propia historia, temperatura ambiente, país), pero sacar las 5–20
-que más cambian **no** mejora el AUC después de T (lo baja a 0.620–0.625). Lo que cambia es la relación con el evento:
+que más cambian **no** mejora el AUC después de T (lo baja de 0.637 a 0.578–0.615). Lo que cambia es la relación con el evento:
 la flota se incorporó entre fines de 2024 y fines de 2025, y los eventos por 100 vehículos activos por trimestre pasan
 de 1.3 (2025T1) a 5.9 (2025T4) y 8.6 (2026T1); los eventos anteriores a T son de vehículos jóvenes.
 
@@ -277,8 +283,8 @@ de 1.3 (2025T1) a 5.9 (2025T4) y 8.6 (2026T1); los eventos anteriores a T son de
 
 | Escenario | Estático | Trimestral | Mensual |
 |---|---|---|---|
-| Misma flota | 0.719 / 0.680 / 0.633 | 0.741 / 0.712 / 0.672 (+0.02 a +0.04*) | **0.755 / 0.723 / 0.691** (+0.035 a +0.058*) |
-| Vehículos nuevos | 0.722 / 0.664 / 0.653 | 0.699 / 0.677 / 0.653 (≈0) | 0.724 / 0.682 / 0.644 (≈0) |
+| Misma flota | 0.724 / 0.693 / 0.658 | 0.743 / 0.723 / 0.686 (+0.020 a +0.031; * a 60 y 90 d) | **0.759 / 0.729 / 0.696** (+0.035 a +0.038*) |
+| Vehículos nuevos | 0.719 / 0.666 / 0.637 | 0.704 / 0.681 / 0.650 (≈0) | 0.722 / 0.682 / 0.639 (≈0) |
 
 \* IC95 de la diferencia excluye 0. Reentrenar mensualmente mejora la flota ya monitoreada, pero no a los vehículos
 nuevos: la ganancia viene de aprender la historia reciente de esos mismos vehículos, no de corregir la deriva general.
@@ -289,12 +295,12 @@ LightGBM, 2 para la red):
 
 | Vehículos por fold (fallados) | LightGBM | Red |
 |---|---|---|
-| 158 (44) | 0.742 ± 0.010 | 0.714 |
-| 317 (89) | 0.771 ± 0.007 | 0.742 |
-| 477 (134) | 0.788 ± 0.003 | 0.771 |
-| 635 (178) | 0.800 | 0.781 |
+| 158 (44) | 0.741 ± 0.007 | 0.725 |
+| 317 (89) | 0.768 ± 0.006 | 0.744 |
+| 477 (134) | 0.788 ± 0.003 | 0.767 |
+| 635 (178) | 0.802 | 0.782 |
 
-Cada duplicación de vehículos suma ~+0.03 de AUC y la curva todavía no se aplana (algo menos en el último tramo). La red
+Cada duplicación de vehículos suma ~+0.03 de AUC y la curva todavía no se aplana. La red
 necesita más datos que el LightGBM para alcanzarlo. Recortar días manteniendo los vehículos no cuesta nada: la
 información está en la cantidad de vehículos y eventos independientes.
 
@@ -329,7 +335,7 @@ modelo sin altura, IC95 de a pares por vehículo:
 
 ## Limitaciones y próximos pasos
 
-- El desempeño cae hacia el futuro, mitad por falta de eventos y mitad por deriva (ver "¿Qué limita el desempeño?"):
+- El desempeño cae hacia el futuro, ~40 % por falta de eventos y ~60 % por deriva (ver "¿Qué limita el desempeño?"):
   reentrenar **mensualmente** para la flota monitoreada y recalibrar el X % de la política relativa con la capacidad de atención de la red de concesionarios.
 - 56 eventos en el holdout y 36 en el temporal: los IC son anchos.
 - No hay GPS, presión de neumáticos ni DPF en % en los datos entregados (difieren del anexo de la consigna).

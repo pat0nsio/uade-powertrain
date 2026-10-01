@@ -217,12 +217,13 @@ como una caída abrupta de hollín. Algoritmo, implementado con funciones de ven
 | caída ≥ 15 | 0.94 | 0.80 |
 
 A nivel vehículo-mes la correlación es **0.88**, y la tasa se mantiene estable antes y después del corte
-(≈2.4–3.1 por 1 000 km). Resultado: 88 407 episodios reconstruidos y el período completo utilizable, sin corte
+(≈2.4–3.1 por 1 000 km). Resultado: 88 437 episodios reconstruidos y el período completo utilizable, sin corte
 administrativo. La bandera original solo se usa para reportar el corte en `quality.json`.
 
 ### 4.6 Agregación diaria
 
-Dos agregaciones por (vehículo, día local), unidas con `FULL JOIN`, dan **284 678 vehículo-días**.
+Dos agregaciones por (vehículo, día local), unidas con `FULL JOIN`, dan **284 678 vehículo-días**; los 992 vehículos del estudio (sin conflictos de etiqueta) suman
+**282 378**, que son las filas de `features.parquet`.
 
 **Desde viajes (`td`):**
 
@@ -458,7 +459,7 @@ El pre-entrenamiento mejora fuera del ruido en OOF (bootstrap de a pares por veh
 en la validación temporal (ΔAUC de −0.002 a +0.015, IC95 incluye 0 en 5 de 6 casos); por el criterio fijado de antemano
 (mejorar en OOF **y** en temporal) no se adopta.
 
-**Desempeño vigente** (holdout): AUC 0.823 / 0.798 / 0.782, al nivel del LightGBM (0.820 / 0.799 / 0.780).
+**Desempeño vigente** (holdout): AUC 0.820 / 0.799 / 0.786, al nivel del LightGBM (0.820 / 0.799 / 0.780).
 
 ### 6.5 Autoencoder (Health Index)
 
@@ -666,17 +667,17 @@ holdout coinciden, lo que indica generalización a vehículos nuevos; el 0.99 es
 
 | H | AUC (IC95) | AP (base) | AUC OOF | AUC dentro de fallados |
 |---|---|---|---|---|
-| 30 | 0.829 (0.78–0.88) | 0.201 (0.022) | 0.846 | 0.745 |
-| 60 | 0.803 (0.76–0.86) | 0.285 (0.048) | 0.819 | 0.705 |
-| 90 | 0.785 (0.74–0.83) | 0.314 (0.079) | 0.809 | 0.675 |
+| 30 | 0.827 (0.78–0.88) | 0.206 (0.022) | 0.846 | 0.743 |
+| 60 | 0.803 (0.76–0.86) | 0.289 (0.048) | 0.820 | 0.704 |
+| 90 | 0.786 (0.74–0.84) | 0.320 (0.079) | 0.810 | 0.677 |
 
 **Alertas** (holdout):
 
 | Política | Detección (IC95) | Anticipación mediana (IC95 km) | Falsas alarmas / vehículo-año |
 |---|---|---|---|
 | ECU actual | 55 % (43–68 %) | 100 d · 4 313 km (2 214–7 131) | 0.60 |
-| Umbral fijo (10 % de días sanos) | 86 % (75–95 %) | 106 d · 3 368 km (2 241–4 984) | 0.63 |
-| Umbral relativo (top 20 %) | 89 % (80–96 %) | 124 d · 4 492 km (3 322–6 445) | 0.61 |
+| Umbral fijo (10 % de días sanos) | 84 % (73–93 %) | 105 d · 3 702 km (2 521–5 435) | 0.65 |
+| Umbral relativo (top 20 %) | 88 % (79–96 %) | 125 d · 4 354 km (3 307–6 513) | 0.61 |
 
 **Validación temporal** ($T$ = 2026-01-01, LightGBM):
 
@@ -702,12 +703,12 @@ telemetría.
 ```bash
 uv venv .venv --python 3.12
 uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url https://download.pytorch.org/whl/cpu
-.venv/bin/python -m src.data          # ≈20 s
-.venv/bin/python -m src.features      # ≈15 s
+.venv/bin/python -m src.data          # ≈10 s
+.venv/bin/python -m src.features      # ≈10 s
 .venv/bin/python -m src.models tune   # ≈10 min (opcional; escribe models/gbm_params.json)
-.venv/bin/python -m src.models        # ≈15 min con GPU (5 folds × 4 modelos + finales + what-if); más en CPU
-.venv/bin/python -m src.evaluate      # ≈2 min
-.venv/bin/python -m src.temporal      # ≈3 min
+.venv/bin/python -m src.models        # ≈17 min con GPU (5 folds × 4 modelos + finales + what-if); más en CPU
+.venv/bin/python -m src.evaluate      # ≈1 min
+.venv/bin/python -m src.temporal      # ≈1.5 min
 .venv/bin/streamlit run app.py
 ```
 
@@ -729,14 +730,14 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
 
 ## 13. Limitaciones conocidas y deuda técnica
 
-- **Deriva temporal**: el AUC a 90 d baja de ~0.78 (holdout por vehículo) a ~0.65 (temporal). `src/diagnose.py`
+- **Deriva temporal**: el AUC a 90 d baja de ~0.78 (holdout por vehículo) a ~0.64 (temporal). `src/diagnose.py`
   lo descompone: ~0.05 por tener menos vehículos con evento (66 en $T$ contra 217 hoy; recortar solo filas no cuesta
-  nada) y ~0.06 por el período (IC95 −0.13 a +0.01 a 90 d; −0.14 a −0.005 a 60 d). Las features cambian mucho entre
+  nada) y ~0.08 por el período (IC95 −0.15 a −0.005 a 90 d; −0.15 a −0.02 a 60 d). Las features cambian mucho entre
   períodos (validación adversarial AUC 0.88), pero sacar las que más cambian no ayuda: cambia la relación con el evento
   a medida que la flota envejece (eventos por 100 vehículos activos: 1.3 → 5.9 → 8.6 por trimestre). Reentrenar
-  mensualmente mejora la flota monitoreada (+0.035 a +0.058 AUC, IC95 excluye 0) pero no a vehículos nuevos.
+  mensualmente mejora la flota monitoreada (+0.035 a +0.038 AUC, IC95 excluye 0) pero no a vehículos nuevos.
 - **Tamaño muestral en vehículos**: la curva de aprendizaje (`src/diagnose.py learning`) sube ~+0.03 de AUC por cada
-  duplicación de vehículos (LightGBM 0.742 → 0.771 → 0.788 → 0.800 con 25/50/75/100 %) y no se aplana; más días por
+  duplicación de vehículos (LightGBM 0.741 → 0.768 → 0.788 → 0.802 con 25/50/75/100 %) y no se aplana; más días por
   vehículo no aportan.
 - **Red neuronal**: ya iguala al LightGBM, pero aporta poco al ensamble (aprende casi lo mismo). El pre-entrenamiento
   auto-supervisado mejora OOF pero no la validación temporal. Pendientes opcionales: entrenamiento adversarial contra
