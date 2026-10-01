@@ -25,6 +25,7 @@ uv pip install --python .venv -r requirements.txt   # torch CPU: --index-url htt
 .venv/bin/python -m src.edge            # alerta a bordo: reglas y modelos compactos vs ECU -> data/edge.json
 .venv/bin/python -m src.edge export     # genera edge/dpf_edge_model.h, compila el C y verifica paridad
 .venv/bin/streamlit run app.py          # dashboard
+.venv/bin/streamlit run app_lgbm.py     # demo: LightGBM entrenado en vivo (≈3 min en CPU) + dashboard completo
 xdg-open pitch/index.html               # presentación (sin servidor ni internet; F pantalla completa, T tema)
 
 # experimentos con la red neuronal (solo la red; AUC OOF con IC y peso en el stacking -> data/nn_results.jsonl)
