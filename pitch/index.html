@@ -385,7 +385,8 @@ svg .muted-fill { fill: var(--rule); }
 .s-pipe .steps { row-gap: 22px; align-self: center; }
 .s-pipe .steps li { padding: 22px 26px; }
 .s-pipe .steps li::before { font-size: 34px; margin-bottom: 10px; }
-.s-pipe .steps p { font-size: 18px; }
+.s-pipe .steps b { font-size: 26px; }
+.s-pipe .steps p { font-size: 22px; }
 .s-act .map.map-3 { grid-template-columns: repeat(3, 1fr); }
 
 /* Datos */
@@ -651,14 +652,14 @@ svg .muted-fill { fill: var(--rule); }
       <h2 class="head">Seis pasos para que los datos digan lo que realmente pasó.</h2>
     </div>
     <ol class="steps" data-r>
-      <li><b>Leer</b><p>Tres fuentes por vehículo: datos de venta y producción, resumen de cada viaje y mensajes de la ECU. Todo con DuckDB, sin cargar los archivos en memoria.</p></li>
-      <li><b>Validar</b><p>Cada sensor tiene un rango físico: lo que cae afuera pasa a nulo. Se descartan los viajes imposibles: odómetro que retrocede, más de 200 km/h o más de 24 h.</p></li>
-      <li><b>Deduplicar</b><p>El mismo viaje llegaba repetido. Se conserva uno con un desempate fijo, así el resultado es idéntico en cualquier máquina.</p></li>
-      <li><b>Etiquetar</b><p>La fecha de falla sale de la lista v2. Un vehículo que figura como fallado en cualquier lista sale de los sanos.</p></li>
-      <li><b>Ubicar en el calendario</b><p>La fecha de producción se reconstruye desde el primer viaje, hecho en planta. Cada viaje pasa a hora local.</p></li>
-      <li><b>Reconstruir y agregar</b><p>Las limpiezas del filtro se detectan como caídas de hollín. Viajes y mensajes se resumen en una fila por vehículo y día.</p></li>
+      <li><b>Leer</b><p>Venta, viajes y mensajes de la ECU, con DuckDB.</p></li>
+      <li><b>Validar</b><p>Valores fuera de rango, a nulo. Viajes imposibles, afuera.</p></li>
+      <li><b>Deduplicar</b><p>40.760 viajes repetidos: queda uno, siempre el mismo.</p></li>
+      <li><b>Etiquetar</b><p>Fechas de la lista v2. Ante la duda, fuera de los sanos.</p></li>
+      <li><b>Ubicar en el calendario</b><p>Producción reconstruida desde el primer viaje en planta.</p></li>
+      <li><b>Reconstruir y agregar</b><p>Limpiezas desde la caída del hollín. Una fila por vehículo y día.</p></li>
     </ol>
-    <p class="foot-note" data-r>Cada paso deja registrado qué descartó y por qué: el reporte de calidad se regenera en cada corrida.</p>
+    <p class="foot-note" data-r>Cada descarte queda registrado en un reporte de calidad.</p>
   </section>
 
   <section class="slide s-data" aria-label="Datos">
