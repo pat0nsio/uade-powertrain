@@ -353,7 +353,7 @@ tocan: esos modelos excluyen el holdout.
 
 ```bash
 # crontab -e   (día 1 de cada mes; el anti-leakage de src.features corta la cadena si falla)
-0 3 1 * * cd ~/Projects/uade-powertrain && (.venv/bin/python -m src.data && .venv/bin/python -m src.features && .venv/bin/python -m src.retrain) >> data/retrain.log 2>&1
+0 3 1 * * cd ~/Projects/uade-powertrain && (.venv/bin/python -m src.data && .venv/bin/python -m src.features && .venv/bin/python -m src.retrain) >> data/retrain_prod.log 2>&1
 ```
 
 ## Limitaciones y próximos pasos
