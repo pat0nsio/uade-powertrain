@@ -14,7 +14,7 @@ from src.features import HORIZONS, feature_cols
 from src.models import K, fit_gbm, split
 from src.ui import detection_chart, risk_chart, weight_chart
 
-st.set_page_config("DPF Health Copilot", layout="wide")
+st.set_page_config("Powertrain Health Copilot", layout="wide")
 DEMO = "VEH_0543"  # la unidad de Ibagué que sigue el pitch
 
 
