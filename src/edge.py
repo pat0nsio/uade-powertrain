@@ -302,7 +302,7 @@ def export(n_test=40):
     model = fit(models()[EDGE_MODEL], f.loc[oof & m, cols], y[oof & m])
     b = model.booster_
     raw = b.predict(f[cols], raw_score=True)
-    # umbral con puntajes fuera de fold (en su propio train los días sanos puntúan más bajo -> umbral demasiado bajo)
+    # umbral con puntajes fuera de fold (en su propio train el umbral sale demasiado bajo)
     raw_oof = np.full(len(f), np.nan)
     for k in range(K):
         tr = oof & (f["fold"].values != k) & m

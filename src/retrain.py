@@ -1,9 +1,4 @@
-"""Reentreno en producción de los LightGBM: python -m src.retrain [AAAA-MM-DD]  (por defecto, el día siguiente al último dato).
-
-Entrena con TODOS los vehículos y solo las etiquetas conocidas en t, guarda en models/prod/<t>/ y promueve moviendo el
-symlink models/prod/current. La decisión de reentrenar mensualmente ya se validó en `python -m src.diagnose retrain`;
-acá solo se controla que el candidato no esté roto. Volver atrás: `ln -sfn <versión> models/prod/current`.
-"""
+"""Reentreno mensual de los LightGBM con todos los vehículos -> models/prod/<fecha>/ (README, "Reentreno en producción")."""
 import json
 import subprocess
 import sys
@@ -38,7 +33,7 @@ def main(t=None):
         y = f[f"y{h}"].values
         rows = known_at(f, h, t).values
         r = {"filas": int(rows.sum()), "vehiculos_con_evento": int(f.loc[rows & (y == 1), "v"].nunique())}
-        # en vivo: el modelo vigente sobre las etiquetas que se conocieron desde su reentreno (nunca las vio)
+        # en vivo: el vigente sobre las etiquetas conocidas desde su reentreno
         if prev:
             new = rows & ~known_at(f, h, pd.Timestamp(prev["t"])).values
             if 0 < y[new].sum() < new.sum():

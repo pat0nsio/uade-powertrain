@@ -3,7 +3,6 @@
 Proyecto para el Ford Innovation Challenge III: predicción temprana de degradación del filtro de partículas (DPF) a
 partir de telemetría. Arquitectura y algoritmos: `docs/DOCUMENTACION_TECNICA.md`. Resultados y cómo correrlo: `README.md`.
 
-Estado de la última sesión (GPU en `pcpat0`, hecha) y pendientes: `docs/SIGUIENTE_SESION.md`.
 
 ## Reglas del proyecto
 

@@ -4,7 +4,7 @@ import itertools
 import numpy as np
 import pandas as pd
 
-MIN_MINS = 20  # trayecto apto: una regeneración en curso termina en > 90 % de los viajes de 20 min o más (completion)
+MIN_MINS = 20  # trayecto apto: la regeneración termina en > 90 % de los viajes de 20 min o más
 WEEKS = 12  # historia usada para el patrón semanal
 DAYS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 BLOCKS = {"madrugada": (0, 6), "mañana": (6, 12), "tarde": (12, 18), "noche": (18, 24)}

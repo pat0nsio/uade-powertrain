@@ -88,7 +88,7 @@ def learning(fracs=(0.25, 0.5, 0.75), reps_gbm=5, reps_nn=2):
                     r = trs[f[f"m{h}"].values[trs]]
                     P[va, j] = fit_gbm(f.loc[r, cols], f.loc[r, f"y{h}"]).predict_proba(f.loc[va, cols])[:, 1]
             res.append(report("gbm", frac, rep, P, np.mean(nv), np.mean(nf)))
-    # red (ARCH vigente); al 100 % se usan las predicciones OOF del pipeline final (mismos folds y arquitectura)
+    # red (ARCH vigente); al 100 % se usan las OOF del pipeline final
     from src.models import Seq, fit_gru, pred_gru
     seq = Seq(pd.read_parquet("data/calendar.parquet"), f)
     usable = f["usable"].values
@@ -244,7 +244,7 @@ def drift(top_k=(5, 10, 20)):
     res["adversarial_top"] = imp.head(20).round(4).to_dict()
     print(f"validación adversarial antes/después de T: AUC {res['adversarial_auc']:.3f}")
     print("features que más separan los períodos:\n" + imp.head(20).round(3).to_string(), flush=True)
-    # (b) ablación: modelo de despliegue (etiquetas conocidas en T, vehículos de train) sin las features que más derivan
+    # (b) ablación: modelo de despliegue sin las features que más derivan
     trv, tev = (f["fold"] >= 0).values, (f["fold"] == -1).values
     res["ablation"] = {}
     for h in HORIZONS:
@@ -259,7 +259,7 @@ def drift(top_k=(5, 10, 20)):
         res["ablation"][f"H{h}"] = r
         print(f"ablación H{h} (AUC holdout antes / desde T): " + " | ".join(
             f"{k} {v['antes_de_T']:.3f} / {v['desde_T']:.3f}" for k, v in r.items()), flush=True)
-    # (c) etiquetas en el tiempo: eventos por trimestre y tasa por vehículo activo; tasa de positivos y90 por trimestre
+    # (c) eventos por trimestre y por vehículo activo
     s = pd.read_parquet("data/static.parquet")
     ev = pd.Series(pd.to_datetime(np.concatenate([np.array(e, dtype="datetime64[D]") for e in s["events"] if len(e)])))
     q = f["day"].dt.to_period("Q")

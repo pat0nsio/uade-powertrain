@@ -88,8 +88,9 @@ Principios de diseño:
 | `src/pretrain.py` | ~100 | Pre-entrenamiento auto-supervisado del codificador de la red (opcional) |
 | `src/evaluate.py` | ~250 | Métricas con IC, políticas de alerta (fija/relativa), lead time vs ECU, SHAP, clustering |
 | `src/temporal.py` | ~170 | Validación de despliegue simulado en una fecha de corte (LightGBM y red) |
+| `src/retrain.py` | ~65 | Reentreno mensual de producción de los LightGBM, versionado y control contra el vigente |
 | `app.py` | ~205 | Dashboard Streamlit (4 vistas) |
-| `app_lgbm.py` | ~145 | Demo: LightGBM entrenado en vivo + dashboard |
+| `app_lgbm.py` | ~190 | Demo: LightGBM entrenado en vivo + dashboard |
 
 ---
 

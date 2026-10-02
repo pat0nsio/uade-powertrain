@@ -36,7 +36,7 @@ def pretrain(seq, vehicles, day_max):
     pos = C.groupby("v", sort=False).cumcount().values
     start = np.arange(n) - pos
     last = start + C.groupby("v", sort=False)["v"].transform("size").values - 1
-    # objetivo "semana siguiente": sumas de los días i+1..i+7 (cumsum global; solo se usa dentro del mismo vehículo)
+    # objetivo "semana siguiente": sumas de los días i+1..i+7
     cs = np.vstack([np.zeros((1, len(NEXT))), np.cumsum(C[NEXT].fillna(0).values, 0)])
     ends = np.where(C["active"].values & (np.arange(n) + 7 <= last))[0]
     nxt = cs[ends + 8] - cs[ends + 1]
