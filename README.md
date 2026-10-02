@@ -26,6 +26,7 @@ uv pip install --python .venv -r requirements.txt   # torch CPU: --index-url htt
 .venv/bin/python -m src.edge export     # genera edge/dpf_edge_model.h, compila el C y verifica paridad
 .venv/bin/streamlit run app.py          # dashboard
 .venv/bin/streamlit run app_lgbm.py     # demo: LightGBM entrenado en vivo (≈1.5 min en CPU) + dashboard completo
+.venv/bin/python -m src.retrain       # reentreno de producción de los LightGBM -> models/prod/<fecha>/ (≈3 min)
 xdg-open pitch/index.html               # presentación (sin servidor ni internet; F pantalla completa, T tema)
 
 # experimentos con la red neuronal (solo la red; AUC OOF con IC y peso en el stacking -> data/nn_results.jsonl)
@@ -333,6 +334,27 @@ modelo sin altura, IC95 de a pares por vehículo:
   monótona (17 % / 36 % / 11 % / 43 % en < 500 / 500–1500 / 1500–2500 / > 2500 m: sigue a Santiago y Bogotá), la
   restricción monótona empeora el modelo (0.181 → 0.176) y la altitud es la variable con más SHAP porque es fija por
   vehículo: identifica cohortes (quién falla), no anticipa cuándo.
+
+## Reentreno en producción (`python -m src.retrain [AAAA-MM-DD]`)
+
+Mensual, solo los LightGBM 30/60/90 d (la ganancia medida en "Reentrenar" es del LightGBM; el stack casi no le suma).
+Entrena con **todos** los vehículos y solo las etiquetas conocidas a la fecha (`known_at`), guarda en
+`models/prod/<fecha>/` y promueve moviendo el symlink `models/prod/current` (volver atrás = `ln -sfn <fecha>
+models/prod/current`). `meta.json` registra por horizonte:
+
+- `vigente_auc_en_vivo`: el modelo vigente sobre las etiquetas que se conocieron desde su reentreno (nunca las vio): es
+  el monitoreo real.
+- `cv_auc`: AUC del candidato con 5 folds por vehículo. Se rechaza solo si su IC95 queda entero por debajo del
+  `cv_auc` del vigente; la decisión de reentrenar ya se validó con el backtest, esto solo detecta un candidato roto.
+
+Simulado el 2026-01-01 y 2026-02-01: AUC en vivo del vigente 0.76 / 0.70 / 0.73, `cv_auc` del candidato 0.84 / 0.79 /
+0.76 (más optimista porque ve la historia de los mismos vehículos). `models/` del dashboard y de la evaluación no se
+tocan: esos modelos excluyen el holdout.
+
+```bash
+# crontab -e   (día 1 de cada mes; el anti-leakage de src.features corta la cadena si falla)
+0 3 1 * * cd ~/Projects/uade-powertrain && (.venv/bin/python -m src.data && .venv/bin/python -m src.features && .venv/bin/python -m src.retrain) >> data/retrain.log 2>&1
+```
 
 ## Limitaciones y próximos pasos
 
