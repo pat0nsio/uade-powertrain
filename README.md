@@ -1,4 +1,4 @@
-# DPF Health Copilot — Ford Innovation Challenge III (Data-Driven Powertrain Intelligence)
+# Powertrain Health Copilot — Ford Innovation Challenge III (Data-Driven Powertrain Intelligence)
 
 Predicción temprana de eventos de degradación de combustión / filtro de partículas (DPF) a partir de telemetría
 de vehículos conectados, con explicación por vehículo y **recomendaciones de manejo que bajan el riesgo**.

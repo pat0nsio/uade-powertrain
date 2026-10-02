@@ -1,4 +1,4 @@
-# DPF Health Copilot — Documentación técnica
+# Powertrain Health Copilot — Documentación técnica
 
 Documento de referencia del repositorio: arquitectura, algoritmos, decisiones de diseño, protocolo de validación y
 artefactos generados. Describe el estado del código en `main` (commit `122f89b` y posteriores). Los números citados

@@ -1,4 +1,4 @@
-"""DPF Health Copilot — dashboard. Ejecutar: streamlit run app.py"""
+"""Powertrain Health Copilot — dashboard. Ejecutar: streamlit run app.py"""
 import json
 
 import lightgbm as lgb
@@ -14,7 +14,7 @@ from src.evaluate import group_of
 from src.features import feature_cols
 from src.ui import AQUA, BLUE, GRAY, INK2, ORANGE, RED, STATUS, style
 
-st.set_page_config("DPF Health Copilot", layout="wide")
+st.set_page_config("Powertrain Health Copilot", layout="wide")
 
 
 @st.cache_data
@@ -83,7 +83,7 @@ latest = p.sort_values("day").groupby("v").tail(1).merge(static[["v", "country",
     .merge(prof, on="v", how="left")
 latest["estado"] = [status(*r) for r in latest[["score_s", "thr_rel", "thr_rel_med"]].values]
 
-st.sidebar.title("DPF Health Copilot")
+st.sidebar.title("Powertrain Health Copilot")
 st.sidebar.caption("Predicción temprana de degradación de combustión / DPF a partir de telemetría conectada.")
 view = st.sidebar.radio("Vista", ["Flota", "Vehículo", "Modelo y negocio", "Calidad de datos"])
 subset = st.sidebar.selectbox("Vehículos", ["Holdout (nunca vistos)", "Todos (OOF)"])

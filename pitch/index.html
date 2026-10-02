@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DPF Health Copilot</title>
-<meta name="description" content="Pitch de DPF Health Copilot para el Ford Innovation Challenge III.">
+<title>Powertrain Health Copilot</title>
+<meta name="description" content="Pitch de Powertrain Health Copilot para el Ford Innovation Challenge III.">
 <style>
 @font-face {
   font-family: "Archivo";
@@ -188,7 +188,7 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
 .s-cover .kicker { font-size: 22px; line-height: 1.4; color: var(--ink-2); }
 .s-cover .cover {
   align-self: center;
-  font-size: 176px;
+  font-size: 150px;
   line-height: .88;
   font-weight: 800;
   font-stretch: 125%;
@@ -227,6 +227,11 @@ svg .whisker { stroke: var(--ink); stroke-width: 2; }
 .chain span { font-size: 21px; line-height: 1.4; color: var(--ink-2); display: block; max-width: 22ch; }
 .s-problem .stat { display: grid; grid-template-columns: auto 1fr; column-gap: 36px; align-items: end; }
 .s-problem .stat .num { font-size: 150px; }
+.s-problem .link { display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--ink); padding-top: 24px; }
+.s-problem .link div + div { border-left: 2px solid var(--rule); padding-left: 48px; }
+.s-problem .link div:first-child { padding-right: 48px; }
+.s-problem .link h3 { font-size: 20px; font-weight: 650; color: var(--accent-ink); margin-bottom: 10px; }
+.s-problem .link p { font-size: 24px; line-height: 1.4; color: var(--ink-2); }
 .s-problem .stat p { font-size: 28px; line-height: 1.35; color: var(--ink-2); max-width: 30ch; padding-bottom: 8px; }
 
 /* Señal */
@@ -529,40 +534,40 @@ svg .muted-fill { fill: var(--rule); }
 
   <section class="slide s-cover" aria-label="Portada">
     <p class="kicker" data-r>Ford Innovation Challenge III<br>Data-Driven Powertrain Intelligence</p>
-    <h1 class="cover" data-r>DPF Health<br>Copilot</h1>
+    <h1 class="cover" data-r>Powertrain<br>Health Copilot</h1>
     <div class="cover-foot" data-r>
-      <p class="lead">Anticipamos la saturación del filtro de partículas meses antes de que llegue al taller, con la telemetría que Ford ya recibe.</p>
+      <p class="lead">Anticipamos la pérdida de eficiencia de combustión meses antes de que llegue al taller, con la telemetría que Ford ya recibe.</p>
       <p class="team">Equipo San Miguel</p>
     </div>
   </section>
 
   <section class="slide s-problem" aria-label="El problema">
     <div class="intro" data-r>
-      <p class="thread">Unidad de Ibagué, Colombia <span class="day">· día −180 del evento</span></p>
-      <h2 class="head">Una unidad diésel hace trayectos cortos, y su filtro empieza a saturarse en silencio.</h2>
+      <p class="thread">El problema</p>
+      <h2 class="head">Detrás de la pérdida de eficiencia hay un filtro de partículas que no termina de limpiarse.</h2>
     </div>
     <ol class="chain" data-r>
       <li><b>Trayectos cortos</b><span>El motor no sostiene la temperatura que necesita la limpieza del filtro.</span></li>
       <li><b>Limpieza incompleta</b><span>La regeneración se corta antes de quemar todo el hollín.</span></li>
-      <li><b>Hollín acumulado</b><span>El filtro se satura y el motor pierde eficiencia.</span></li>
-      <li><b>Visita imprevista</b><span>Costo de garantía, cliente insatisfecho y agenda del taller desordenada.</span></li>
+      <li><b>Hollín acumulado</b><span>Cada limpieza a medias deja hollín y el filtro se va saturando.</span></li>
+      <li><b>Pérdida de eficiencia</b><span>El motor rinde menos y el problema recién aparece en el service.</span></li>
     </ol>
-    <div class="stat" data-r>
-      <span class="num">45&nbsp;%</span>
-      <p>de estos eventos llega hoy sin ninguna advertencia de la ECU en los seis meses previos.</p>
+    <div class="link" data-r>
+      <div><h3>Lo que plantea el desafío</h3><p>La degradación viene del uso: trayectos cortos y una operación que no deja completar los ciclos naturales de recuperación del sistema.</p></div>
+      <div><h3>Lo que muestran los datos</h3><p>Ese ciclo es la regeneración del filtro de partículas: la carga de hollín sube, el filtro se limpia y los mensajes de la ECU siguen el ciclo normal, lleno, sobre el límite y limpieza.</p></div>
     </div>
   </section>
 
   <section class="slide s-signal" aria-label="La señal">
-    <h2 class="head" data-r>No es un caso aislado: la telemetría muestra el problema 90 días antes.</h2>
+    <h2 class="head" data-r>La telemetría muestra la saturación del filtro 90 días antes del evento.</h2>
     <figure data-r>
       <figcaption class="chart-title">Mensajes del filtro sobre el límite, en % de los mensajes</figcaption>
       <svg id="c-signal" viewBox="0 0 860 440" width="860" height="440" role="img" aria-label="Los mensajes de filtro sobre el límite pasan de 0,6 % a 2,4 % en los 90 días previos al evento y vuelven a 0,4 % después del service."></svg>
     </figure>
     <aside>
-      <div class="fact" data-r><span class="num">65 a 70<small>&nbsp;%</small></span><p class="label">de viajes de menos de 5 km en los meses previos al evento</p></div>
-      <div class="fact" data-r><span class="num">275 a 290<small>&nbsp;km</small></span><p class="label">entre una limpieza del filtro y la siguiente</p></div>
-      <p class="small" data-r>Vehículos con evento, alineados en la fecha del evento. Después del service todo vuelve a la normalidad.</p>
+      <div class="fact" data-r><span class="num">×6</span><p class="label">más mensajes sobre el límite que un vehículo sano, en los 90 días previos (2,2 % contra 0,4 %)</p></div>
+      <div class="fact" data-r><span class="num">0,4<small>&nbsp;%</small></span><p class="label">después del service: vuelve al nivel de los vehículos sanos</p></div>
+      <p class="small" data-r>Vehículos con evento, alineados en la fecha del evento. Ojo: en la mitad de los eventos el filtro nunca llega al límite, y ahí este mensaje no avisa.</p>
     </aside>
   </section>
 
@@ -573,7 +578,7 @@ svg .muted-fill { fill: var(--rule); }
       <p class="label">de los eventos, detectados antes de que ocurran</p>
     </div>
     <figure class="bars" data-r>
-      <svg id="c-result" viewBox="0 0 800 330" width="800" height="330" role="img" aria-label="DPF Health Copilot detecta 88 % de los eventos, intervalo 79 a 96 %, con 0,61 falsas alarmas por vehículo y año. La advertencia actual de la ECU detecta 55 %, intervalo 43 a 68 %, con 0,60."></svg>
+      <svg id="c-result" viewBox="0 0 800 330" width="800" height="330" role="img" aria-label="Powertrain Health Copilot detecta 88 % de los eventos, intervalo 79 a 96 %, con 0,61 falsas alarmas por vehículo y año. La advertencia actual de la ECU detecta 55 %, intervalo 43 a 68 %, con 0,60."></svg>
     </figure>
     <p class="small foot" data-r>Medido en 198 vehículos que el modelo nunca vio, con 56 eventos. Las líneas finas son el intervalo de confianza del 95 %.</p>
   </section>
@@ -824,6 +829,7 @@ svg .muted-fill { fill: var(--rule); }
         <li><b>Viajes cortos</b> contra la propia historia</li>
       </ul>
       <p class="small" data-r>Las variables de telemetría más fuertes. El país es la variable individual más influyente, pero sin vehículo y mercado el AUC dentro de fallados casi no cambia: el <b>cuándo</b> viene de la telemetría.</p>
+      <p class="small" data-r>¿Y si el país fuera la altura? Probamos la altura de la ciudad de venta: en lugar del país pierde entre 0,01 y 0,03 de AUC, y sumada al país no aporta nada.</p>
     </aside>
   </section>
 
@@ -876,7 +882,7 @@ svg .muted-fill { fill: var(--rule); }
     <h2 class="head" data-r>Entre USD 0,3 y 0,7 millones de ahorro adicional por año, cada 50.000 vehículos.</h2>
     <figure data-r>
       <figcaption class="chart-title">Ahorro neto por año, en millones de USD</figcaption>
-      <svg id="c-money" viewBox="0 0 860 420" width="860" height="420" role="img" aria-label="Con 60 % de eventos evitados, el ahorro neto es de 1,83 millones de USD con DPF Health Copilot contra 1,12 millones con la advertencia actual: 0,70 millones más por año."></svg>
+      <svg id="c-money" viewBox="0 0 860 420" width="860" height="420" role="img" aria-label="Con 60 % de eventos evitados, el ahorro neto es de 1,83 millones de USD con Powertrain Health Copilot contra 1,12 millones con la advertencia actual: 0,70 millones más por año."></svg>
     </figure>
     <div class="costs" data-r>
       <h3>Lo que cuesta</h3>
@@ -894,7 +900,7 @@ svg .muted-fill { fill: var(--rule); }
   <section class="slide s-compare" aria-label="Hoy frente a la solución">
     <h2 class="head" data-r>Del taller imprevisto al mantenimiento planificado.</h2>
     <table class="cmp" data-r>
-      <thead><tr><th scope="col"></th><th scope="col">Hoy</th><th scope="col">Con DPF Health Copilot</th></tr></thead>
+      <thead><tr><th scope="col"></th><th scope="col">Hoy</th><th scope="col">Con Powertrain Health Copilot</th></tr></thead>
       <tbody>
         <tr><th scope="row">Eventos anticipados</th><td>55 %</td><td>88 %, con las mismas falsas alarmas</td></tr>
         <tr><th scope="row">Momento del aviso</th><td>Cuando el filtro ya está sobre el límite</td><td>Meses antes, cuando el patrón de uso empieza a cambiar</td></tr>
@@ -903,7 +909,7 @@ svg .muted-fill { fill: var(--rule); }
         <tr><th scope="row">Concesionario</th><td>Demanda imprevista</td><td>Ranking diario y volumen de alertas acordado</td></tr>
       </tbody>
     </table>
-    <p class="small" data-r>El punto de operación se eligió fuera de fold: la mayor detección sin superar las falsas alarmas de la ECU. A igual tasa de falsas alarmas, fijo y relativo rinden parecido; el relativo además fija cuántos turnos pedir al taller.</p>
+    <p class="small" data-r>Medido en 198 vehículos que el modelo nunca vio, con 56 eventos: 0,61 falsas alarmas por vehículo y año, contra 0,60 de la advertencia actual de la ECU.</p>
   </section>
 
   <section class="slide s-road" aria-label="Hoja de ruta">
@@ -992,7 +998,7 @@ svg .muted-fill { fill: var(--rule); }
     const W = 800, m = { l: 0, r: 20 };
     const x = lin(0, 100, m.l, W - m.r);
     const rows = [
-      { name: "DPF Health Copilot", v: 88, lo: 79, hi: 96, fa: "0,61", cls: "fill-accent", y: 40 },
+      { name: "Powertrain Health Copilot", v: 88, lo: 79, hi: 96, fa: "0,61", cls: "fill-accent", y: 40 },
       { name: "Advertencia actual de la ECU", v: 55, lo: 43, hi: 68, fa: "0,60", cls: "fill-base", y: 200 },
     ];
     rows.forEach((r, i) => {
@@ -1094,10 +1100,10 @@ svg .muted-fill { fill: var(--rule); }
     el("path", { d: `M${x(20)},${y(ours(.2))}L${x(80)},${y(ours(.8))}L${x(80)},${y(ecu(.8))}L${x(20)},${y(ecu(.2))}Z`, class: "gap" }, svg);
     el("path", { d: "M" + fs.map(f => x(f) + "," + y(ecu(f / 100))).join("L"), class: "line base draw", pathLength: 1 }, svg);
     el("path", { d: "M" + fs.map(f => x(f) + "," + y(ours(f / 100))).join("L"), class: "line accent draw", pathLength: 1 }, svg);
-    text(svg, x(80) + 14, y(ours(.8)) + 6, "DPF Health Copilot", "val");
+    text(svg, x(80) + 14, y(ours(.8)) + 6, "Powertrain Health Copilot", "val");
     text(svg, x(80) + 14, y(ecu(.8)) + 6, "Advertencia actual", "val");
     el("line", { x1: x(60), x2: x(60), y1: y(ours(.6)), y2: y(ecu(.6)), class: "whisker" }, svg);
-    tip(el("circle", { cx: x(60), cy: y(ours(.6)), r: 7, class: "dot accent" }, svg), "60 %: USD 1,83 M con DPF Health Copilot");
+    tip(el("circle", { cx: x(60), cy: y(ours(.6)), r: 7, class: "dot accent" }, svg), "60 %: USD 1,83 M con Powertrain Health Copilot");
     tip(el("circle", { cx: x(60), cy: y(ecu(.6)), r: 7, class: "dot base" }, svg), "60 %: USD 1,12 M con la advertencia actual");
     text(svg, x(60) + 16, (y(ours(.67)) + y(ecu(.67))) / 2 + 9, "+USD 0,70 M", "anno-accent").setAttribute("style", "font-size:24px");
   }
