@@ -10,6 +10,18 @@ de vehículos conectados, con explicación por vehículo y **recomendaciones de 
 
 ## Cómo correrlo
 
+> **El dataset no viene en el repo.** Antes de correr nada, importarlo en `./Datasets/` con esta estructura de carpetas
+> (los nombres de archivo están en `src/data.py`):
+>
+> ```
+> Datasets/
+> ├── Dynamic/       DynamicInformation_{Failed,NotFailed}_SelectionVins*.csv
+> ├── Static/        StaticInformation_{Failed,NotFailed}Vins*.csv
+> └── TripSummary/   TripSummary_{Failed,NotFailed}_SelectionVins*.csv
+> ```
+>
+> Sin estos archivos, `src.data` falla y ningún paso posterior tiene datos de entrada.
+
 ```bash
 uv venv .venv --python 3.12
 uv pip install --python .venv -r requirements.txt   # torch CPU: --index-url https://download.pytorch.org/whl/cpu
