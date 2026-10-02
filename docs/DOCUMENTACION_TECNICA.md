@@ -88,7 +88,8 @@ Principios de diseño:
 | `src/pretrain.py` | ~100 | Pre-entrenamiento auto-supervisado del codificador de la red (opcional) |
 | `src/evaluate.py` | ~250 | Métricas con IC, políticas de alerta (fija/relativa), lead time vs ECU, SHAP, clustering |
 | `src/temporal.py` | ~170 | Validación de despliegue simulado en una fecha de corte (LightGBM y red) |
-| `app.py` | ~375 | Dashboard Streamlit (4 vistas) |
+| `app.py` | ~205 | Dashboard Streamlit (4 vistas) |
+| `app_lgbm.py` | ~145 | Demo: LightGBM entrenado en vivo + dashboard |
 
 ---
 
@@ -434,7 +435,7 @@ $m_H$ y peso $\sqrt{\min((1-\bar y_h)/\bar y_h, 20)}$.)
   *gradient clipping* 1.0, precisión mixta fp16 en GPU (`GradScaler`); la atención se calcula en fp32.
 - Dispositivo, precisión mixta, semillas, épocas y batch salen de `config.local.json` (`src/config.py`); corre igual en
   CPU. Con una Radeon RX 6650 XT (ROCm) una época tarda ~5 s y el pipeline completo ~15 min.
-- Los pesos de atención (media de las semillas) se guardan en `models/gru_attention.npy` para el dashboard.
+- Los pesos de atención (media de las semillas) se guardan en `models/gru_attention.npy`.
 
 **Pre-entrenamiento auto-supervisado (opcional, `pre=True`, no adoptado).** `src/pretrain.py` entrena la capa de entrada
 y la GRU con dos objetivos: reconstruir días enmascarados (15–30 % de la ventana; como la GRU es causal, cada día se
@@ -560,8 +561,9 @@ Por modelo y horizonte, sobre filas $m_H$ del holdout:
 - **SHAP global**: `shap.TreeExplainer` sobre `gbm90.txt` con 5 000 filas del holdout; $|SHAP|$ medio por feature,
   agregado en grupos de hipótesis física (`GROUPS`: Hollín/DPF, Regeneraciones, Patrón de uso, Térmico, Consumo, Aceite,
   Clima, Vehículo/mercado) mediante `group_of`.
-- **SHAP local** (en el dashboard): *waterfall* de las 12 contribuciones de mayor magnitud para el vehículo-día elegido.
-- **Atención de la red**: qué días de los últimos 180 pesaron en la predicción.
+- **SHAP local** (en el dashboard): suma de SHAP por grupo de hipótesis física para el vehículo-día elegido (los 5 de
+  mayor magnitud, sin vehículo/mercado, que no dependen del conductor).
+- **Atención de la red**: qué días de los últimos 180 pesaron en la predicción (`models/gru_attention.npy`).
 
 ### 7.5 Perfiles de conductor
 
@@ -606,18 +608,20 @@ período y estacionalidad con el entrenamiento y por eso es optimista.
 ## 9. `app.py` — dashboard
 
 Streamlit con Plotly. Los datos se cargan con `st.cache_data` y los modelos con `st.cache_resource`. Paleta con slots
-categóricos fijos (azul = modelo, naranja = ECU, aqua = umbral relativo / GRU), colores de estado reservados y siempre
-acompañados de ícono y texto.
+categóricos fijos (azul = modelo, naranja = ECU, aqua = política relativa, rojo = evento o factor que sube el riesgo).
+
+Muestra solo los 198 vehículos de holdout. Los gráficos compartidos con `app_lgbm.py` (detección vs falsas alarmas,
+peso por grupo, riesgo de un vehículo) están en `src/ui.py`.
 
 | Vista | Contenido |
 |---|---|
-| **Flota** | KPIs (vehículos, en alerta, anticipación mediana, detección); ranking por riesgo con Health Index, RUL, perfil y país; tasa de falla por perfil; estados por país. El estado usa la **política relativa**: Alto si `score_s ≥ thr_rel`, Medio si `≥ thr_rel_med`. |
-| **Vehículo** | Riesgo en el tiempo con el umbral de flota dinámico, advertencias ECU y eventos; *small multiples* de hollín, km entre regeneraciones, viajes cortos y consumo (un eje por gráfico); SHAP local; P(evento ≤ t) del RSF; atención de la GRU; recomendaciones prescriptivas; simulador *what-if*. |
-| **Modelo y negocio** | Tabla de discriminación; IC por vehículo y AUC OOF; validación temporal; curva detección vs falsas alarmas (fijo, relativo, ECU, punto de operación); calibración; SHAP por grupo y top 15; modelo económico. |
-| **Calidad de datos** | Decisiones de datos y tabla completa de `quality.json`. |
+| **Flota** | Vehículos monitoreados, en alerta y detección contra la ECU; ranking por riesgo con estado y país. El estado usa la **política relativa**: Alto si `score_s ≥ thr_rel`, Medio si `≥ thr_rel_med`. |
+| **Vehículo** | Abre en la unidad de Ibagué del pitch (VEH_0543), en el día de su primera alerta antes del evento. Riesgo en el tiempo con el umbral de flota, advertencias ECU y eventos; SHAP local agrupado por hipótesis física (5 grupos, sin vehículo/mercado); receta mínima y ventana de regeneración; simulador *what-if*. |
+| **Resultados** | Detección, anticipación y falsas alarmas contra la ECU; curva detección vs falsas alarmas de la política relativa; peso de cada grupo (% del \|SHAP\| total); modelo económico. |
+| **Datos** | Volumen procesado y principales decisiones de limpieza de `quality.json`. |
 
-**Recomendaciones.** Se suman los SHAP positivos por grupo de hipótesis física y se muestran los consejos
-(`ADVICE`) de los 3 grupos que más empujan el riesgo.
+`app_lgbm.py` entrena el LightGBM (5 folds × 3 horizontes, ≈80 s en CPU), muestra que reproduce el AUC de
+`data/metrics.json` y da paso al dashboard completo.
 
 **Simulador *what-if*.** Sobre las features del día elegido, en las ventanas de 7, 30 y 90 días:
 
@@ -639,7 +643,9 @@ $$
 
 donde $N$ es el tamaño de la flota, $\lambda$ la tasa anual de eventos, $s$ la fracción de eventos evitados, $FA$ los
 episodios de falsa alarma por vehículo-año, y $C$ los costos de la reparación correctiva, la notificación al cliente
-(nivel 1) y la acción preventiva (nivel 2).
+(nivel 1) y la acción preventiva (nivel 2). En el dashboard se editan $N$, $C_{corr}$ y $s$; el resto queda en los
+valores del informe ($\lambda = 0.05$, $C_{notif} = 3$, $C_{prev} = 200$ USD). Se muestra el ahorro neto y el adicional
+frente a la ECU (misma fórmula con las tasas de la ECU).
 
 ---
 

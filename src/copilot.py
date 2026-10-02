@@ -56,8 +56,8 @@ def recipe_text(r):
         return ("Según el modelo de hábitos, el riesgo ya está por debajo del umbral de la flota: cambiar el manejo "
                 "no lo baja de forma apreciable. Si el vehículo está en alerta, revisar el filtro en el concesionario.")
     if not r["reaches"]:
-        return (f"Ni combinando todos los cambios de hábito sale de alerta (riesgo {r['risk0']:.0%} → {r['risk']:.0%} "
-                "en el mejor caso): la prioridad es una regeneración asistida en el concesionario.")
+        return (f"Ni combinando todos los cambios de hábito sale de alerta (en el mejor caso el riesgo baja un "
+                f"{1 - r['risk'] / r['risk0']:.0%}): la prioridad es una regeneración asistida en el concesionario.")
     parts = []
     if r["long_trips"]:
         parts.append(f"{r['long_trips']} trayecto{'s' if r['long_trips'] > 1 else ''} de ruta de ~30 min por semana")
@@ -66,7 +66,7 @@ def recipe_text(r):
     if r["warm"]:
         parts.append("no apagar el motor mientras el tablero indica limpieza del filtro")
     return "Cambio mínimo que saca al vehículo de alerta: " + "; ".join(parts) + \
-        f" (riesgo {r['risk0']:.0%} → {r['risk']:.0%})."
+        f" (el riesgo baja un {1 - r['risk'] / r['risk0']:.0%})."
 
 
 def regen_windows(trips, day, weeks=WEEKS, min_mins=MIN_MINS):
