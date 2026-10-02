@@ -1,6 +1,7 @@
 """LightGBM en vivo: entrena el componente principal (5 folds + holdout) en CPU, muestra lo que genera y da paso al
 dashboard completo con el resto de los modelos ya entrenados. Ejecutar: streamlit run app_lgbm.py"""
 import json
+import threading
 import time
 
 import numpy as np
@@ -27,14 +28,14 @@ def features():
     return f, cum_km
 
 
-def train(f, cum_km, log):
+def train(f, cum_km, report):
     """Mismo protocolo que src.models: OOF en los 5 folds de train y holdout = promedio de los 5 modelos."""
     cols = feature_cols(f)
     fold = split(f)
     test = np.where(fold == -1)[0]
     P = f[["v", "day", "failed", "tte"] + [f"{p}{h}" for p in ("y", "m") for h in HORIZONS]].copy()
     P["fold"], P["cum_km"] = fold, cum_km
-    bar, t0, n = st.progress(0.0), time.time(), 0
+    t0, n = time.time(), 0
     for k in range(K):
         tr, va = np.where((fold != k) & (fold != -1))[0], np.where(fold == k)[0]
         for h in HORIZONS:
@@ -43,17 +44,15 @@ def train(f, cum_km, log):
             P.loc[va, f"gbm{h}"] = m.predict_proba(f.loc[va, cols])[:, 1]
             P.loc[test, f"gbm{h}"] = P.loc[test, f"gbm{h}"].fillna(0) + m.predict_proba(f.loc[test, cols])[:, 1] / K
             n += 1
-            bar.progress(n / (K * len(HORIZONS)),
-                         f"fold {k + 1}/{K} · {h} días · {len(r):,} filas · {time.time() - t0:.0f} s".replace(",", "."))
-    log.write(f"{K * len(HORIZONS)} modelos entrenados en {time.time() - t0:.0f} s")
+            report(n / (K * len(HORIZONS)), f"modelo {n}/{K * len(HORIZONS)} (fold {k + 1}, {h} días)")
     return P, m, cols, time.time() - t0  # m: modelo a 90 días del último fold (para SHAP)
 
 
-def evaluate(P, f, m90, cols, log):
+def evaluate(P, f, m90, cols, report):
     test, oof = (P["fold"] == -1).values, (P["fold"] >= 0).values
     disc = [{"H": h, "auc": roc_auc_score(P.loc[test & P[f"m{h}"].values, f"y{h}"],
                                           P.loc[test & P[f"m{h}"].values, f"gbm{h}"])} for h in HORIZONS]
-    log.write("AUC en los 198 vehículos que el modelo nunca vio")
+    report(1.0, "evaluando: política de alerta")
 
     # política de alerta del dashboard: top X % de riesgo de la flota (30 días), X elegido en OOF contra la ECU
     P["score_s"] = smooth(P, "gbm90")
@@ -66,16 +65,56 @@ def evaluate(P, f, m90, cols, log):
     ecu = leadtime(P[test], "ecu", 0.5)[1]
     P["alerta"] = rel[rop].astype(bool)
     P["thr"] = fleet_threshold(P, "score_s", rop)
-    log.write(f"Política de alerta: top {rop:.0%} de la flota (elegido fuera de fold)")
+    report(1.0, "evaluando: SHAP")
 
     sample = f.loc[test].sample(3000, random_state=0)[cols]
     sv = shap.TreeExplainer(m90.booster_).shap_values(sample)
     sv = sv[1] if isinstance(sv, list) else sv
     sg = pd.DataFrame({"feature": cols, "shap": np.abs(sv).mean(0)})
     sg["group"] = sg["feature"].map(group_of)
-    log.write("SHAP sobre 3000 días de holdout")
     return {"disc": disc, "curve": curve, "ecu": ecu, "rop": rop, "op": next(c for c in curve if c["pct"] == rop),
             "shap": sg.sort_values("shap", ascending=False)}
+
+
+def job():
+    """Estado del entrenamiento de esta sesión. Corre en un hilo aparte para que siga al cambiar de página."""
+    return st.session_state.setdefault("job", {"state": "idle"})
+
+
+def run(j, f, cum_km):
+    try:
+        P, m90, cols, secs = train(f, cum_km, lambda frac, msg: j.update(frac=frac, msg=msg))
+        R = evaluate(P, f, m90, cols, lambda frac, msg: j.update(frac=frac, msg=msg))
+        j.update(state="done", result=(P, R, secs))
+    except Exception as e:  # se muestra en el indicador en lugar de perderse en el hilo
+        j.update(state="error", msg=repr(e))
+
+
+def indicator():
+    """Indicador en la barra lateral, visible en todas las páginas: progreso mientras entrena y aviso al terminar."""
+    j = job()
+    if j["state"] == "idle":
+        return
+    running = j["state"] == "running"
+
+    @st.fragment(run_every=2 if running else None)
+    def show():
+        if running and job()["state"] != "running":
+            st.rerun()  # terminó: se redibuja la app y el indicador deja de consultar
+        if running:
+            st.progress(j["frac"], f"LightGBM entrenando · {j['msg']} · {time.time() - j['t0']:.0f} s")
+        elif j["state"] == "done":
+            auc90 = j["result"][1]["disc"][-1]["auc"]
+            st.success(f"LightGBM listo en {j['result'][2]:.0f} s · AUC a 90 días {auc90:.3f}".replace(".", ","),
+                       icon=":material/check_circle:")
+        else:
+            st.error(f"El entrenamiento falló: {j['msg']}", icon=":material/error:")
+
+    with st.sidebar:
+        show()
+    if j["state"] == "done" and not j.get("toasted"):
+        j["toasted"] = True
+        st.toast("LightGBM terminó de entrenar", icon=":material/check_circle:")
 
 
 def live():
@@ -87,16 +126,19 @@ def live():
     c[1].metric("Vehículos", f"{f['v'].nunique()}")
     c[2].metric("Vehículos con evento", f"{f.groupby('v')['failed'].first().sum()}")
 
-    if st.button("Volver a entrenar" if "live" in st.session_state else "Entrenar LightGBM", type="primary"):
-        with st.status("Entrenando…", expanded=True) as s:
-            P, m90, cols, secs = train(f, cum_km, s)
-            s.update(label="Evaluando…")
-            R = evaluate(P, f, m90, cols, s)
-            s.update(label=f"Listo en {secs:.0f} s de entrenamiento", state="complete", expanded=False)
-        st.session_state["live"] = (P, R, secs)
-    if "live" not in st.session_state:
+    j = job()
+    if st.button("Volver a entrenar" if j["state"] == "done" else "Entrenar LightGBM", type="primary",
+                 disabled=j["state"] == "running"):
+        j.clear()
+        j.update(state="running", frac=0.0, msg="empezando", t0=time.time())
+        threading.Thread(target=run, args=(j, f, cum_km), daemon=True).start()
+        st.rerun()
+    if j["state"] == "running":
+        st.info("Entrenando en segundo plano. Podés ir al dashboard completo: el indicador de la barra lateral avisa "
+                "cuando termina, y los resultados aparecen acá.", icon=":material/hourglass_top:")
+    if j["state"] != "done":
         return
-    P, R, secs = st.session_state["live"]
+    P, R, secs = j["result"]
     test = P[P["fold"] == -1]
     op, ecu = R["op"], R["ecu"]
 
@@ -140,5 +182,6 @@ def live():
     st.page_link("app.py", label="Ver el dashboard completo", icon=":material/arrow_forward:")
 
 
+indicator()
 st.navigation([st.Page(live, title="LightGBM en vivo", default=True),
                st.Page("app.py", title="Dashboard completo")]).run()
