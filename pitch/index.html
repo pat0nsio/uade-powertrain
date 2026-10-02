@@ -775,8 +775,8 @@ svg .muted-fill { fill: var(--rule); }
       <svg id="c-gru" viewBox="0 0 640 440" width="640" height="440" role="img" aria-label="Arquitectura: 180 días de 39 señales pasan por una capa lineal, una GRU de 64 y atención; las 170 variables del día con embeddings pasan por una capa lineal; ambas se unen en una cabeza de riesgo discreto a 26 semanas."></svg>
     </figure>
     <figure data-r>
-      <figcaption class="chart-title">AUC fuera de fold a 90 días, variante por variante</figcaption>
-      <svg id="c-nn" viewBox="0 0 660 380" width="660" height="380" role="img" aria-label="La AUC pasa de 0,713 con la GRU original a 0,756 con parada temprana y 5 semillas, 0,775 con 180 días, 0,777 y 0,781 con variables, y 0,778 con la cabeza de riesgo discreto, elegida por ser la mejor a 30 días con 0,827."></svg>
+      <figcaption class="chart-title">Riesgo que estima la red a medida que se acerca el evento, en veces el de un vehículo sano</figcaption>
+      <svg id="c-nn" viewBox="0 0 660 380" width="660" height="380" role="img" aria-label="En los vehículos del holdout con evento, el riesgo que estima la red es 1,4 veces el de un vehículo sano 26 semanas antes del evento y sube hasta 3,2 veces la semana anterior."></svg>
     </figure>
     <div class="notes" data-r>
       <p class="small"><b>La cabeza de riesgo discreto</b> estima la probabilidad de evento en cada una de las próximas 26 semanas con la verosimilitud con censura. De ahí salen P(≤30, 60, 90 días), coherentes entre sí por construcción, y la vida útil restante.</p>
@@ -1261,23 +1261,28 @@ svg .muted-fill { fill: var(--rule); }
   }
 
   // Experimentos de la red: AUC OOF a 90 d (README, "Red neuronal")
+  // Riesgo a 90 días de la red (gru90, holdout) según semanas que faltan para el evento, dividido por el riesgo medio
+  // de los vehículos sanos del holdout (0,176): 55 vehículos con evento y 143 sanos.
   function chartNN(svg) {
-    const W = 660, H = 380, m = { l: 300, r: 40, t: 0, b: 76 };
-    const rows = [["GRU original, 60 días", .713], ["+ parada temprana y 5 semillas", .756], ["ventana de 180 días", .775],
-                  ["+ variables, 60 días", .777], ["+ variables, 180 días", .781], ["+ riesgo discreto (elegida)", .778]];
-    const x = lin(.70, .80, m.l, W - m.r), step = (H - m.t - m.b) / rows.length;
-    for (const t of [.70, .75, .80]) {
-      el("line", { x1: x(t), x2: x(t), y1: m.t, y2: H - m.b, class: t > .70 ? "grid" : "axis" }, svg);
-      text(svg, x(t), H - m.b + 28, fmt(t, 2), "tick", "middle");
+    const W = 660, H = 380, m = { l: 64, r: 40, t: 40, b: 64 };
+    const pts = [[-26, 1.37], [-25, 1.32], [-24, 1.32], [-23, 1.4], [-22, 1.36], [-21, 1.51], [-20, 1.5], [-19, 1.52],
+                 [-18, 1.73], [-17, 1.71], [-16, 1.72], [-15, 1.77], [-14, 1.93], [-13, 1.95], [-12, 2.12], [-11, 2.19],
+                 [-10, 2.15], [-9, 2.24], [-8, 2.35], [-7, 2.3], [-6, 2.33], [-5, 2.5], [-4, 2.54], [-3, 2.68], [-2, 3.06],
+                 [-1, 3.23]];
+    const x = lin(-26, 0, m.l, W - m.r), y = lin(0, 3.5, H - m.b, m.t);
+    for (const t of [0, 1, 2, 3]) {
+      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t ? "grid" : "axis" }, svg);
+      text(svg, m.l - 12, y(t) + 6, t + "×", "tick", "end");
     }
-    rows.forEach(([n, v], i) => {
-      const cy = m.t + step * i + step / 2, last = i === rows.length - 1;
-      text(svg, m.l - 20, cy + 6, n, last ? "val" : "tick", "end");
-      el("line", { x1: x(.70), x2: x(v), y1: cy, y2: cy, class: "grid" }, svg);
-      tip(el("circle", { cx: x(v), cy, r: 8, class: "dot " + (last ? "accent" : "base") }, svg), `${n}: ${fmt(v, 3)}`);
-      text(svg, x(v) + 14, cy + 6, fmt(v, 3), last ? "val-strong" : "val");
-    });
-    text(svg, W - m.r, H - 4, "a 30 días, la elegida es la mejor: 0,827", "anno", "end");
+    for (const t of [-26, -13, 0]) text(svg, x(t), H - m.b + 30, t ? fmt(t) : "evento", "tick", "middle");
+    text(svg, (m.l + W - m.r) / 2, H - 6, "semanas antes del evento", "tick", "middle");
+    el("line", { x1: m.l, x2: W - m.r, y1: y(1), y2: y(1), class: "event dashed" }, svg);
+    text(svg, m.l + 8, y(1) + 26, "vehículo sano", "anno");
+    el("path", { d: "M" + pts.map(([w, v]) => x(w) + "," + y(v)).join("L"), class: "line accent draw", pathLength: 1 }, svg);
+    pts.forEach(([w, v]) => tip(el("circle", { cx: x(w), cy: y(v), r: 4, class: "dot accent" }, svg),
+                                `${-w} semanas antes: ${fmt(v, 1)} veces el riesgo de un sano`));
+    text(svg, x(-26), y(1.37) - 16, "1,4×", "val", "start");
+    text(svg, x(-1), y(3.23) - 16, "3,2×", "val-strong", "end");
   }
 
   // Discriminación por horizonte (README, holdout con IC95, OOF y dentro de fallados)
