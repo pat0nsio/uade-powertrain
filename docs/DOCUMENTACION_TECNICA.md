@@ -726,7 +726,7 @@ uv pip install --python .venv -r requirements.txt     # torch CPU: --index-url h
   `src.diagnose`), `lightgbm.device` (`cpu`/`gpu`, solo entrenamiento), precisión mixta, hilos, parámetros de
   entrenamiento de la red y variables de entorno (p. ej. `HSA_OVERRIDE_GFX_VERSION=10.3.0` para una Radeon RX 6650 XT).
 - Memoria: DuckDB acotado a 4 GB por defecto; el entrenamiento completo ronda 2–3 GB de RSS. Probado en 12 núcleos y
-  16 GB sin GPU (pat0top) y con una Radeon RX 6650 XT de 8 GB (pcpat0; pico de 85 °C de *junction*).
+  16 GB sin GPU y con una Radeon RX 6650 XT de 8 GB (pico de 85 °C de *junction*).
 - Determinismo: semillas fijas y datos idénticos con cualquier cantidad de hilos de DuckDB. Puede haber pequeñas
   variaciones numéricas entre máquinas por la paralelización de LightGBM/PyTorch.
 - `data/`, `models/` y `Datasets/` están en `.gitignore`: son artefactos regenerables o datos confidenciales. La
